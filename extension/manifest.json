@@ -1,0 +1,73 @@
+{
+  "manifest_version": 3,
+  "name": "YouTube Live Chat TTS Assistant",
+  "version": "1.0.0",
+  "description": "Automatically scrape YouTube live chat and enable TTS functionality",
+  "icons": {
+    "16": "icons/icon16.png",
+    "48": "icons/icon48.png",
+    "128": "icons/icon128.png"
+  },
+  "permissions": [
+    "scripting",
+    "tabs",
+    "storage"
+  ],
+  "host_permissions": [
+    "https://www.youtube.com/*",
+    "https://youtube.com/*"
+  ],
+  "content_scripts": [
+    {
+      "js": ["content-script.js"],
+      "matches": [
+        "https://www.youtube.com/live_chat*",
+        "https://youtube.com/live_chat*"
+      ],
+      "run_at": "document_idle"
+    },
+    {
+      "js": ["content-script-app.js"],
+      "matches": [
+        "file:///*/*.html",
+        "http://localhost/*",
+        "http://127.0.0.1/*",
+        "http://*/*",
+        "https://*/*"
+      ],
+      "run_at": "document_idle",
+      "all_frames": false
+    }
+  ],
+  "background": {
+    "service_worker": "background.js"
+  },
+  "action": {
+    "default_popup": "popup.html",
+    "default_icon": {
+      "16": "icons/icon16.png",
+      "48": "icons/icon48.png",
+      "128": "icons/icon128.png"
+    }
+  },
+  "web_accessible_resources": [
+    {
+      "resources": ["injected-script.js", "bridge.js"],
+      "matches": [
+        "https://www.youtube.com/*",
+        "https://youtube.com/*",
+        "http://127.0.0.1/*",
+        "http://localhost/*",
+        "file:///*"
+      ]
+    }
+  ],
+  "externally_connectable": {
+    "matches": [
+      "http://127.0.0.1/*",
+      "http://localhost/*",
+      "file:///*"
+    ]
+  }
+}
+

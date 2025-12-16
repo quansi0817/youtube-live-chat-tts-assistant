@@ -1,0 +1,155 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>YouTube Live Chat TTS Assistant</title>
+    <link rel="stylesheet" href="../css/styles.css">
+</head>
+<body>
+    <div class="container">
+        <!-- Header -->
+        <header class="header">
+            <h1>🎥 YouTube Live Chat TTS Assistant</h1>
+            <div class="status-bar">
+                <div class="status-item">
+                    <span class="status-label">Status:</span>
+                    <span id="connectionStatus" class="status-badge disconnected">Disconnected</span>
+                </div>
+                <div class="status-item">
+                    <a href="instructions.html" target="_blank" style="color: #4299e1; text-decoration: none; font-size: 14px;">📖 Setup Instructions</a>
+                </div>
+            </div>
+        </header>
+
+        <!-- Main Content -->
+        <div class="main-content">
+            <!-- Left Panel: Chat Messages -->
+            <div class="chat-panel">
+                <div class="panel-header">
+                    <h2>💬 Live Chat</h2>
+                    <div class="connection-controls">
+                        <input type="text" id="videoIdInput" class="input" placeholder="Enter YouTube Video ID or URL">
+                        <button id="connectBtn" class="btn btn-primary">Connect</button>
+                        <button id="disconnectBtn" class="btn btn-secondary" disabled>Disconnect</button>
+                    </div>
+                    <div class="input-hint" style="font-size: 12px; color: #718096; margin-top: 5px;">
+                        Examples: <code>dQw4w9WgXcQ</code> or <code>https://www.youtube.com/watch?v=dQw4w9WgXcQ</code>
+                    </div>
+                </div>
+                <div id="chatMessages" class="chat-messages">
+                    <div class="empty-state">
+                        <p>Enter a YouTube Video ID and click Connect to start receiving chat messages</p>
+                        <p class="hint">Example: dQw4w9WgXcQ (from youtube.com/watch?v=dQw4w9WgXcQ)</p>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Right Panel: Controls -->
+            <div class="controls-panel">
+                <!-- TTS Settings -->
+                <div class="settings-section">
+                    <h3>🔊 TTS Settings</h3>
+                    <div class="setting-item">
+                        <label for="ttsProvider">TTS Provider:</label>
+                        <select id="ttsProvider" class="select">
+                            <option value="openai">OpenAI TTS</option>
+                            <option value="elevenlabs">ElevenLabs</option>
+                            <option value="google">Google Cloud TTS</option>
+                            <option value="system">System TTS (Free)</option>
+                        </select>
+                    </div>
+                    <div class="setting-item">
+                        <label for="ttsApiKey">API Key:</label>
+                        <input type="password" id="ttsApiKey" class="input" placeholder="Enter API key">
+                    </div>
+                    <div class="setting-item">
+                        <label for="ttsVoice">Voice:</label>
+                        <select id="ttsVoice" class="select">
+                            <option value="alloy">Alloy</option>
+                            <option value="echo">Echo</option>
+                            <option value="fable">Fable</option>
+                            <option value="onyx">Onyx</option>
+                            <option value="nova">Nova</option>
+                            <option value="shimmer">Shimmer</option>
+                        </select>
+                    </div>
+                    <div class="setting-item">
+                        <label for="ttsVolume">Volume: <span id="volumeValue">100</span>%</label>
+                        <input type="range" id="ttsVolume" class="slider" min="0" max="100" value="100">
+                    </div>
+                    <button id="testTtsBtn" class="btn btn-secondary">Test TTS</button>
+                </div>
+
+                <!-- Song Display -->
+                <div class="song-section">
+                    <h3>🎵 Now Playing</h3>
+                    <div id="songDisplay" class="song-display">
+                        <div class="song-info">
+                            <div id="songTitle" class="song-title">No music detected</div>
+                            <div id="songArtist" class="song-artist">-</div>
+                        </div>
+                        <div class="song-controls">
+                            <button id="refreshSongBtn" class="btn btn-small">Refresh</button>
+                            <button id="manualSongBtn" class="btn btn-small">Manual Input</button>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Hidden iframe for YouTube chat -->
+        <iframe id="youtubeChatFrame" style="display: none;" sandbox="allow-same-origin allow-scripts"></iframe>
+    </div>
+
+    <!-- Manual Song Input Modal -->
+    <div id="songModal" class="modal">
+        <div class="modal-content">
+            <span class="close">&times;</span>
+            <h3>Manual Song Input</h3>
+            <div class="form-group">
+                <label for="manualSongTitle">Song Title:</label>
+                <input type="text" id="manualSongTitle" class="input" placeholder="Enter song title">
+            </div>
+            <div class="form-group">
+                <label for="manualSongArtist">Artist:</label>
+                <input type="text" id="manualSongArtist" class="input" placeholder="Enter artist name">
+            </div>
+            <button id="saveSongBtn" class="btn btn-primary">Save</button>
+        </div>
+    </div>
+
+    <!-- Song Overlay (for OBS) -->
+    <div id="songOverlay" class="song-overlay">
+        <div class="overlay-content">
+            <div id="overlayTitle" class="overlay-title">-</div>
+            <div id="overlayArtist" class="overlay-artist">-</div>
+        </div>
+    </div>
+
+    <!-- Scripts -->
+    <script src="../js/youtube-chat-scraper.js"></script>
+    <script src="../js/tts-manager.js"></script>
+    <script src="../js/music-detector.js"></script>
+    <script src="../js/app.js"></script>
+    
+    <script>
+        // Show instructions when connecting for the first time
+        let hasShownInstructions = localStorage.getItem('hasShownInstructions');
+        if (!hasShownInstructions) {
+            document.getElementById('connectBtn').addEventListener('click', function() {
+                if (!hasShownInstructions) {
+                    setTimeout(() => {
+                        const showInstructions = confirm('Due to browser security, you need to manually run a script in the YouTube chat window.\n\nClick OK to see detailed instructions.');
+                        if (showInstructions) {
+                            window.open('instructions.html', '_blank');
+                        }
+                        localStorage.setItem('hasShownInstructions', 'true');
+                    }, 1000);
+                }
+            }, { once: true });
+        }
+    </script>
+</body>
+</html>
+
