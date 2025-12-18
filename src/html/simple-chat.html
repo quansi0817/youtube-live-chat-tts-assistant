@@ -1,133 +1,333 @@
 <!DOCTYPE html>
-<html lang="en">
+<html lang="zh-CN">
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>YouTube Chat</title>
-    <style>
-        * {
-            margin: 0;
-            padding: 0;
-            box-sizing: border-box;
-        }
-        body {
-            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
-            background: #1a1a1a;
-            color: #fff;
-            padding: 0;
-            overflow: hidden;
-        }
-        .chat-messages {
-            height: 100vh;
-            overflow-y: auto;
-            padding: 15px;
-            background: #1a1a1a;
-        }
-        .message {
-            background: rgba(255, 255, 255, 0.05);
-            padding: 12px;
-            margin-bottom: 8px;
-            border-radius: 6px;
-            border-left: 3px solid #4299e1;
-            cursor: pointer;
-            transition: all 0.2s;
-        }
-        .message:hover {
-            background: rgba(255, 255, 255, 0.1);
-            transform: translateX(4px);
-        }
-        .message.clicked {
-            border-left-color: #48bb78;
-        }
-        .author {
-            font-weight: bold;
-            color: #4299e1;
-            margin-bottom: 5px;
-            font-size: 14px;
-        }
-        .text {
-            color: #e2e8f0;
-            line-height: 1.5;
-            font-size: 14px;
-        }
-        .time {
-            font-size: 11px;
-            color: #a0aec0;
-            margin-top: 5px;
-        }
-        .empty {
-            text-align: center;
-            padding: 40px;
-            color: #718096;
-        }
-        .chat-messages::-webkit-scrollbar {
-            width: 8px;
-        }
-        .chat-messages::-webkit-scrollbar-track {
-            background: #2d3748;
-        }
-        .chat-messages::-webkit-scrollbar-thumb {
-            background: #4a5568;
-            border-radius: 4px;
-        }
-        .chat-messages::-webkit-scrollbar-thumb:hover {
-            background: #718096;
-        }
-    </style>
+    <title>YouTube 直播聊天</title>
+    <link rel="stylesheet" href="../css/youtube-chat.css">
 </head>
 <body>
-    <div id="messages" class="chat-messages">
-        <div class="empty">等待聊天消息...</div>
+    <div class="chat-container">
+        <div id="messages" class="chat-messages">
+            <div class="empty-state">等待聊天消息...</div>
+        </div>
     </div>
 
     <script>
         const messagesEl = document.getElementById('messages');
-        
+        const messageIds = new Set(); // 防止重复消息
+
+        /**
+         * 添加消息到聊天窗口
+         */
         function addMessage(data) {
             if (!data || !data.id) return;
-            
-            if (messagesEl.querySelector('.empty')) {
-                messagesEl.innerHTML = '';
+
+            // 防止重复消息
+            if (messageIds.has(data.id)) return;
+            messageIds.add(data.id);
+
+            // 清除空状态提示
+            const emptyState = messagesEl.querySelector('.empty-state');
+            if (emptyState) {
+                emptyState.remove();
             }
-            
-            const msgEl = document.createElement('div');
-            msgEl.className = 'message';
-            msgEl.innerHTML = `
-                <div class="author">${escapeHtml(data.author)}</div>
-                <div class="text">${escapeHtml(data.message)}</div>
-                <div class="time">${data.timestamp || ''}</div>
-            `;
-            
+
+            // 根据消息类型创建不同的元素
+            let msgEl;
+
+            if (data.isSuperChat) {
+                // Super Chat (付费消息)
+                msgEl = createSuperChatMessage(data);
+            } else if (data.isSuperSticker) {
+                // Super Sticker (付费贴纸)
+                msgEl = createSuperStickerMessage(data);
+            } else if (data.isMembership) {
+                // 会员消息
+                msgEl = createMembershipMessage(data);
+            } else {
+                // 普通消息
+                msgEl = createTextMessage(data);
+            }
+
+            // 添加点击TTS功能
             msgEl.addEventListener('click', () => {
                 msgEl.classList.add('clicked');
-                if (window.speechSynthesis) {
-                    const utterance = new SpeechSynthesisUtterance(`${data.author} 说: ${data.message}`);
-                    utterance.volume = 1.0;
-                    window.speechSynthesis.speak(utterance);
-                }
+                speakMessage(data);
             });
-            
+
+            // 添加新消息动画
+            msgEl.classList.add('new');
+            setTimeout(() => msgEl.classList.remove('new'), 300);
+
+            // 添加到聊天窗口
             messagesEl.appendChild(msgEl);
+
+            // 自动滚动到底部
             messagesEl.scrollTop = messagesEl.scrollHeight;
-            
-            const allMessages = messagesEl.querySelectorAll('.message');
+
+            // 限制消息数量（保留最新500条）
+            const allMessages = messagesEl.children;
             if (allMessages.length > 500) {
                 allMessages[0].remove();
+                // 从Set中移除旧消息ID
+                const firstId = allMessages[0].dataset.messageId;
+                if (firstId) messageIds.delete(firstId);
             }
         }
-        
+
+        /**
+         * 创建普通文本消息
+         */
+        function createTextMessage(data) {
+            const msgEl = document.createElement('div');
+            msgEl.className = 'chat-message';
+            msgEl.dataset.messageId = data.id;
+
+            let html = '<div class="message-header">';
+
+            // 添加头像
+            if (data.authorPhoto) {
+                html += `<img src="${data.authorPhoto}" class="author-photo" alt="${escapeHtml(data.author)}">`;
+            }
+
+            // 添加作者名
+            html += `<span class="author-name">${escapeHtml(data.author)}</span>`;
+            html += '</div>';
+
+            // 添加消息内容（保留HTML以显示表情）
+            if (data.messageHtml) {
+                html += `<div class="message-content">${sanitizeHtml(data.messageHtml)}</div>`;
+            } else {
+                html += `<div class="message-content">${escapeHtml(data.message || '')}</div>`;
+            }
+
+            // 添加时间戳
+            if (data.timestamp) {
+                html += `<span class="timestamp">${escapeHtml(data.timestamp)}</span>`;
+            }
+
+            msgEl.innerHTML = html;
+            return msgEl;
+        }
+
+        /**
+         * 创建Super Chat消息
+         */
+        function createSuperChatMessage(data) {
+            const msgEl = document.createElement('div');
+            msgEl.className = 'super-chat';
+            msgEl.dataset.messageId = data.id;
+
+            // 根据金额确定等级（简单分类）
+            const tier = getSuperChatTier(data.purchaseAmount);
+            msgEl.classList.add(`tier-${tier}`);
+
+            // 自定义背景颜色
+            if (data.backgroundColor) {
+                msgEl.style.background = data.backgroundColor;
+            }
+
+            let html = '<div class="super-chat-header">';
+            html += '<div class="super-chat-author">';
+
+            // 添加头像
+            if (data.authorPhoto) {
+                html += `<img src="${data.authorPhoto}" class="author-photo" alt="${escapeHtml(data.author)}">`;
+            }
+
+            // 添加作者名
+            html += `<span class="author-name">${escapeHtml(data.author)}</span>`;
+            html += '</div>';
+
+            // 添加金额
+            if (data.purchaseAmount) {
+                html += `<span class="super-chat-amount">${escapeHtml(data.purchaseAmount)}</span>`;
+            }
+
+            html += '</div>';
+
+            // 添加消息内容
+            if (data.messageHtml) {
+                html += `<div class="super-chat-message">${sanitizeHtml(data.messageHtml)}</div>`;
+            } else if (data.message) {
+                html += `<div class="super-chat-message">${escapeHtml(data.message)}</div>`;
+            }
+
+            msgEl.innerHTML = html;
+            return msgEl;
+        }
+
+        /**
+         * 创建Super Sticker消息
+         */
+        function createSuperStickerMessage(data) {
+            const msgEl = document.createElement('div');
+            msgEl.className = 'super-sticker';
+            msgEl.dataset.messageId = data.id;
+
+            let html = '<div class="super-chat-author">';
+
+            // 添加头像和作者名
+            if (data.authorPhoto) {
+                html += `<img src="${data.authorPhoto}" class="author-photo" alt="${escapeHtml(data.author)}">`;
+            }
+            html += `<span class="author-name">${escapeHtml(data.author)}</span>`;
+            html += '</div>';
+
+            // 添加贴纸图片
+            if (data.stickerUrl) {
+                html += `<img src="${data.stickerUrl}" class="super-sticker-img" alt="Super Sticker">`;
+            }
+
+            // 添加金额
+            if (data.purchaseAmount) {
+                html += `<div class="super-sticker-amount">${escapeHtml(data.purchaseAmount)}</div>`;
+            }
+
+            msgEl.innerHTML = html;
+            return msgEl;
+        }
+
+        /**
+         * 创建会员消息
+         */
+        function createMembershipMessage(data) {
+            const msgEl = document.createElement('div');
+            msgEl.className = 'membership-message';
+            msgEl.dataset.messageId = data.id;
+
+            let html = '';
+
+            // 添加头部信息
+            if (data.headerPrimary) {
+                html += `<div class="membership-header">${escapeHtml(data.headerPrimary)}</div>`;
+            }
+
+            if (data.headerSub) {
+                html += `<div class="membership-subtext">${escapeHtml(data.headerSub)}</div>`;
+            }
+
+            // 添加消息内容
+            if (data.messageHtml) {
+                html += `<div class="membership-message-content">${sanitizeHtml(data.messageHtml)}</div>`;
+            } else if (data.message) {
+                html += `<div class="membership-message-content">${escapeHtml(data.message)}</div>`;
+            }
+
+            msgEl.innerHTML = html;
+            return msgEl;
+        }
+
+        /**
+         * 根据金额获取Super Chat等级
+         */
+        function getSuperChatTier(amount) {
+            if (!amount) return 1;
+
+            // 提取数字
+            const numMatch = amount.match(/[\d,.]+/);
+            if (!numMatch) return 1;
+
+            const num = parseFloat(numMatch[0].replace(/,/g, ''));
+
+            // 简单分类（可根据实际需要调整）
+            if (num >= 500) return 7;
+            if (num >= 200) return 6;
+            if (num >= 100) return 5;
+            if (num >= 50) return 4;
+            if (num >= 20) return 3;
+            if (num >= 5) return 2;
+            return 1;
+        }
+
+        /**
+         * 转义HTML（防止XSS）
+         */
         function escapeHtml(text) {
+            if (!text) return '';
             const div = document.createElement('div');
             div.textContent = text;
             return div.innerHTML;
         }
-        
+
+        /**
+         * 清理HTML，只保留安全的标签（表情图片等）
+         */
+        function sanitizeHtml(html) {
+            if (!html) return '';
+
+            const div = document.createElement('div');
+            div.innerHTML = html;
+
+            // 只保留img、yt-emoji等安全标签
+            const allowedTags = ['IMG', 'YT-EMOJI', 'YT-FORMATTED-STRING', 'SPAN', 'A'];
+            const elements = div.querySelectorAll('*');
+
+            elements.forEach(el => {
+                if (!allowedTags.includes(el.tagName)) {
+                    // 不安全的标签，只保留文本内容
+                    el.replaceWith(document.createTextNode(el.textContent));
+                } else if (el.tagName === 'IMG') {
+                    // 确保图片有正确的class
+                    el.classList.add('emoji');
+                    // 移除不安全的事件属性
+                    Array.from(el.attributes).forEach(attr => {
+                        if (attr.name.startsWith('on')) {
+                            el.removeAttribute(attr.name);
+                        }
+                    });
+                } else if (el.tagName === 'A') {
+                    // 链接在新窗口打开
+                    el.setAttribute('target', '_blank');
+                    el.setAttribute('rel', 'noopener noreferrer');
+                }
+            });
+
+            return div.innerHTML;
+        }
+
+        /**
+         * TTS语音播放
+         */
+        function speakMessage(data) {
+            if (!window.speechSynthesis) return;
+
+            let text = '';
+
+            if (data.isSuperChat) {
+                text = `${data.author} 送出了 ${data.purchaseAmount} 的Super Chat`;
+                if (data.message) {
+                    text += `，说：${data.message}`;
+                }
+            } else if (data.isSuperSticker) {
+                text = `${data.author} 送出了 ${data.purchaseAmount} 的Super Sticker`;
+            } else if (data.isMembership) {
+                text = `${data.author} ${data.headerPrimary}`;
+                if (data.message) {
+                    text += `，${data.message}`;
+                }
+            } else {
+                text = `${data.author} 说：${data.message}`;
+            }
+
+            const utterance = new SpeechSynthesisUtterance(text);
+            utterance.volume = 1.0;
+            utterance.rate = 1.0;
+            utterance.lang = 'zh-CN';
+            window.speechSynthesis.speak(utterance);
+        }
+
+        // ==================== 消息接收监听器 ====================
+
+        // 监听1: Custom Event
         window.addEventListener('youtubeChatMessage', (event) => {
             if (event.detail) {
                 addMessage(event.detail);
             }
         });
-        
+
+        // 监听2: LocalStorage
         let lastLocalStorageCheck = 0;
         setInterval(() => {
             try {
@@ -143,15 +343,18 @@
                 // Ignore
             }
         }, 300);
-        
+
+        // 监听3: PostMessage
         window.addEventListener('message', (event) => {
             if (event.data && event.data.type === 'YOUTUBE_CHAT_MESSAGE') {
                 addMessage(event.data.data);
             }
         });
-        
+
+        // 监听4: Chrome Storage (Extension)
         if (typeof chrome !== 'undefined' && chrome.storage) {
             let lastChromeStorageTime = 0;
+
             setInterval(() => {
                 chrome.storage.local.get(['lastChatMessage'], (result) => {
                     if (result.lastChatMessage && result.lastChatMessage.timestamp > lastChromeStorageTime) {
@@ -162,7 +365,7 @@
                     }
                 });
             }, 300);
-            
+
             chrome.storage.onChanged.addListener((changes) => {
                 if (changes.lastChatMessage) {
                     const newValue = changes.lastChatMessage.newValue;
@@ -172,7 +375,8 @@
                 }
             });
         }
-        
+
+        // 监听5: BroadcastChannel
         try {
             const channel = new BroadcastChannel('youtube-chat-tts');
             channel.onmessage = (event) => {
@@ -181,8 +385,12 @@
                 }
             };
         } catch (e) {
-            // Ignore
+            // BroadcastChannel not supported
         }
+
+        // Debug: 日志输出
+        console.log('YouTube Chat Display 已加载');
+        console.log('等待接收聊天消息...');
     </script>
 </body>
 </html>

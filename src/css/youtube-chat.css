@@ -1,0 +1,288 @@
+/* YouTube Live Chat 样式 - 模仿YouTube原生聊天样式 */
+
+* {
+    margin: 0;
+    padding: 0;
+    box-sizing: border-box;
+}
+
+body {
+    font-family: "YouTube Sans", "Roboto", sans-serif;
+    background: #0f0f0f;
+    color: #fff;
+    overflow: hidden;
+}
+
+.chat-container {
+    height: 100vh;
+    display: flex;
+    flex-direction: column;
+    background: #0f0f0f;
+}
+
+.chat-messages {
+    flex: 1;
+    overflow-y: auto;
+    overflow-x: hidden;
+    padding: 4px 0;
+}
+
+.chat-messages::-webkit-scrollbar {
+    width: 11px;
+}
+
+.chat-messages::-webkit-scrollbar-track {
+    background: transparent;
+}
+
+.chat-messages::-webkit-scrollbar-thumb {
+    background: rgba(255, 255, 255, 0.2);
+    border-radius: 10px;
+    border: 2px solid transparent;
+    background-clip: padding-box;
+}
+
+.chat-messages::-webkit-scrollbar-thumb:hover {
+    background: rgba(255, 255, 255, 0.3);
+    background-clip: padding-box;
+}
+
+/* 普通聊天消息 */
+.chat-message {
+    padding: 4px 16px;
+    cursor: pointer;
+    transition: background-color 0.1s;
+    font-size: 13px;
+    line-height: 20px;
+}
+
+.chat-message:hover {
+    background-color: rgba(255, 255, 255, 0.05);
+}
+
+.chat-message.clicked {
+    background-color: rgba(33, 150, 243, 0.1);
+}
+
+.message-header {
+    display: inline-flex;
+    align-items: center;
+    margin-right: 4px;
+}
+
+.author-photo {
+    width: 24px;
+    height: 24px;
+    border-radius: 50%;
+    margin-right: 8px;
+    vertical-align: middle;
+}
+
+.author-name {
+    font-weight: 500;
+    color: rgba(255, 255, 255, 0.7);
+    margin-right: 4px;
+    display: inline;
+}
+
+.message-content {
+    display: inline;
+    color: rgba(255, 255, 255, 0.9);
+    word-wrap: break-word;
+    word-break: break-word;
+}
+
+/* 表情符号支持 */
+.message-content img.emoji {
+    width: 24px;
+    height: 24px;
+    vertical-align: middle;
+    margin: 0 1px;
+}
+
+.timestamp {
+    font-size: 11px;
+    color: rgba(255, 255, 255, 0.4);
+    margin-left: 8px;
+}
+
+/* Super Chat (付费消息) 样式 */
+.super-chat {
+    padding: 8px 16px;
+    margin: 4px 0;
+    border-radius: 4px;
+    cursor: pointer;
+    transition: all 0.2s;
+}
+
+.super-chat:hover {
+    filter: brightness(1.1);
+}
+
+/* Super Chat 不同等级的颜色 */
+.super-chat.tier-1 {
+    background: linear-gradient(to right, #1e88e5, #1565c0);
+}
+
+.super-chat.tier-2 {
+    background: linear-gradient(to right, #00e5ff, #00b8d4);
+}
+
+.super-chat.tier-3 {
+    background: linear-gradient(to right, #76ff03, #64dd17);
+}
+
+.super-chat.tier-4 {
+    background: linear-gradient(to right, #ffea00, #ffd600);
+}
+
+.super-chat.tier-5 {
+    background: linear-gradient(to right, #ff6f00, #e65100);
+}
+
+.super-chat.tier-6 {
+    background: linear-gradient(to right, #e91e63, #c2185b);
+}
+
+.super-chat.tier-7 {
+    background: linear-gradient(to right, #e62117, #b71c1c);
+}
+
+.super-chat-header {
+    display: flex;
+    align-items: center;
+    margin-bottom: 4px;
+}
+
+.super-chat-author {
+    display: flex;
+    align-items: center;
+    flex: 1;
+}
+
+.super-chat-amount {
+    font-weight: 700;
+    font-size: 14px;
+    margin-left: auto;
+}
+
+.super-chat-message {
+    margin-top: 8px;
+    font-size: 14px;
+    line-height: 20px;
+    word-wrap: break-word;
+}
+
+/* Super Sticker (付费贴纸) */
+.super-sticker {
+    padding: 12px 16px;
+    margin: 4px 0;
+    background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+    border-radius: 4px;
+    text-align: center;
+    cursor: pointer;
+}
+
+.super-sticker-img {
+    width: 96px;
+    height: 96px;
+    margin: 8px auto;
+}
+
+.super-sticker-amount {
+    font-weight: 700;
+    font-size: 16px;
+    margin-top: 8px;
+}
+
+/* 会员消息 */
+.membership-message {
+    padding: 8px 16px;
+    margin: 4px 0;
+    background: rgba(15, 157, 88, 0.2);
+    border-left: 4px solid #0f9d58;
+    cursor: pointer;
+}
+
+.membership-header {
+    font-weight: 500;
+    color: #0f9d58;
+    margin-bottom: 4px;
+}
+
+.membership-subtext {
+    font-size: 12px;
+    color: rgba(255, 255, 255, 0.6);
+    margin-bottom: 4px;
+}
+
+.membership-message-content {
+    color: rgba(255, 255, 255, 0.9);
+}
+
+/* 空状态 */
+.empty-state {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    height: 100%;
+    color: rgba(255, 255, 255, 0.5);
+    font-size: 14px;
+}
+
+/* 消息动画 */
+@keyframes slideIn {
+    from {
+        opacity: 0;
+        transform: translateY(-10px);
+    }
+    to {
+        opacity: 1;
+        transform: translateY(0);
+    }
+}
+
+.chat-message.new,
+.super-chat.new,
+.super-sticker.new,
+.membership-message.new {
+    animation: slideIn 0.3s ease-out;
+}
+
+/* 徽章样式 */
+.badge {
+    display: inline-block;
+    width: 16px;
+    height: 16px;
+    margin-right: 4px;
+    vertical-align: middle;
+}
+
+/* YouTube原生元素样式保持 */
+yt-live-chat-text-message-renderer,
+yt-live-chat-paid-message-renderer,
+yt-live-chat-paid-sticker-renderer,
+yt-live-chat-membership-item-renderer {
+    display: block;
+    padding: 4px 16px;
+}
+
+/* 确保表情图片正确显示 */
+img.emoji,
+yt-emoji img,
+yt-formatted-string img {
+    width: 24px;
+    height: 24px;
+    vertical-align: middle;
+    display: inline-block;
+}
+
+/* 链接样式 */
+a {
+    color: #3ea6ff;
+    text-decoration: none;
+}
+
+a:hover {
+    text-decoration: underline;
+}

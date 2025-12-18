@@ -8,11 +8,16 @@ A specialized assistant tool designed for YouTube live streaming with the follow
 
 ## Features
 
-- ✅ Real-time YouTube live chat stream
+- ✅ **完整抓取 YouTube 直播聊天** - 保持与原版一模一样
+  - 普通文字消息（包含表情符号 emoji）
+  - Super Chat（打赏消息，保留颜色和金额）
+  - Super Sticker（付费贴纸）
+  - 会员消息（Membership）
+  - 用户头像和时间戳
 - ✅ Click messages to read with TTS (supports multiple TTS providers)
 - ✅ Auto-detect music playing in browser tabs
 - ✅ Manual song name input option
-- ✅ Clean and beautiful interface design
+- ✅ Clean and beautiful YouTube-style interface
 - ✅ Support for OBS Studio and other streaming software
 
 ## Tech Stack
@@ -38,6 +43,30 @@ youtube-live-chat-tts-assistant/
 ```
 
 ## Quick Start
+
+### 使用浏览器扩展抓取聊天（推荐）
+
+1. **安装浏览器扩展**
+   ```
+   - 打开 Chrome 浏览器
+   - 进入 chrome://extensions/
+   - 开启"开发者模式"
+   - 点击"加载已解压的扩展程序"
+   - 选择项目中的 extension 文件夹
+   ```
+
+2. **打开 YouTube 直播并打开聊天显示页面**
+   ```
+   - 访问任意 YouTube 直播
+   - 在浏览器中打开 src/html/simple-chat.html
+   - 聊天消息会自动显示（包括表情、Super Chat等）
+   ```
+
+3. **点击消息即可 TTS 朗读**
+
+📖 **详细使用说明**: 查看 [docs/YOUTUBE_CHAT_USAGE.md](docs/YOUTUBE_CHAT_USAGE.md)
+
+### 传统方式（需要配置API）
 
 1. Clone or download this repository
 2. Open `src/html/index.html` in your browser
