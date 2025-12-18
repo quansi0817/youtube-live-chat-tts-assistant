@@ -117,11 +117,13 @@
      */
     function sendMessage(data) {
         try {
-            // Method 1: Send to background script
-            chrome.runtime.sendMessage({
-                type: 'YOUTUBE_CHAT_MESSAGE',
-                data: data
-            });
+            // Method 1: Send to background script (如果在扩展环境中)
+            if (typeof chrome !== 'undefined' && chrome.runtime && chrome.runtime.sendMessage) {
+                chrome.runtime.sendMessage({
+                    type: 'YOUTUBE_CHAT_MESSAGE',
+                    data: data
+                }).catch(() => {});
+            }
             
             // Method 2: Store in localStorage (最可靠的方法，同源页面都能收到)
             try {
@@ -200,10 +202,17 @@
      */
     function initScraper() {
         if (checkForErrors()) {
-            chrome.runtime.sendMessage({
-                type: 'YOUTUBE_CHAT_ERROR',
-                error: 'Video may not be live or chat is disabled'
-            }).catch(() => {});
+            // 尝试发送错误消息
+            try {
+                if (typeof chrome !== 'undefined' && chrome.runtime && chrome.runtime.sendMessage) {
+                    chrome.runtime.sendMessage({
+                        type: 'YOUTUBE_CHAT_ERROR',
+                        error: 'Video may not be live or chat is disabled'
+                    }).catch(() => {});
+                }
+            } catch (e) {
+                console.warn('无法发送错误消息:', e);
+            }
             return;
         }
         
@@ -217,10 +226,17 @@
             window.scraperRetryCount++;
             
             if (window.scraperRetryCount > 10) {
-                chrome.runtime.sendMessage({
-                    type: 'YOUTUBE_CHAT_ERROR',
-                    error: 'Chat container not found. Video may not be live or chat is disabled.'
-                }).catch(() => {});
+                // 尝试发送错误消息
+                try {
+                    if (typeof chrome !== 'undefined' && chrome.runtime && chrome.runtime.sendMessage) {
+                        chrome.runtime.sendMessage({
+                            type: 'YOUTUBE_CHAT_ERROR',
+                            error: 'Chat container not found. Video may not be live or chat is disabled.'
+                        }).catch(() => {});
+                    }
+                } catch (e) {
+                    console.warn('无法发送错误消息:', e);
+                }
                 return;
             }
             setTimeout(initScraper, 1000);
