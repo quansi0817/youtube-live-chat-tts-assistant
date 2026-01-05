@@ -184,8 +184,8 @@ body {
 
 .message-header {
     display: flex;
-    justify-content: space-between;
     align-items: center;
+    gap: 8px;
     margin-bottom: 6px;
 }
 
@@ -198,6 +198,7 @@ body {
 .message-time {
     font-size: 11px;
     color: #a0aec0;
+    margin-left: auto;
 }
 
 .message-content {
@@ -205,6 +206,16 @@ body {
     font-size: 14px;
     line-height: 1.5;
     word-wrap: break-word;
+}
+
+/* Emoji size align with text */
+.message-content img,
+.message-content .emoji,
+.message-content yt-emoji img,
+.message-content yt-formatted-string img {
+    width: 14px;
+    height: 14px;
+    vertical-align: middle;
 }
 
 /* Controls Panel */
@@ -459,4 +470,5 @@ body {
         width: 100%;
     }
 }
+
 

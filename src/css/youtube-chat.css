@@ -271,8 +271,8 @@ yt-live-chat-membership-item-renderer {
 img.emoji,
 yt-emoji img,
 yt-formatted-string img {
-    width: 24px;
-    height: 24px;
+    width: 14px;
+    height: 14px;
     vertical-align: middle;
     display: inline-block;
 }

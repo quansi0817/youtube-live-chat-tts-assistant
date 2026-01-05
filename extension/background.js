@@ -1,83 +1,51 @@
 /**
  * Background Service Worker
- * Handles messages from content scripts and communicates with main app
+ * Acts as a central hub for message relaying between YouTube and the App pages.
  */
 
-// Store messages temporarily
+// Temporarily store the latest messages
 let messageQueue = [];
 
-// Listen for messages from content scripts
+// Listen for messages from content scripts (YouTube pages)
 chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
     if (message.type === 'YOUTUBE_CHAT_MESSAGE') {
         const messageData = message.data;
         
-        // Store message
+        // Push to local queue
         messageQueue.push({
             ...messageData,
-            timestamp: Date.now()
+            receivedAt: Date.now()
         });
         
-        // Keep only last 100 messages
+        // Limit queue size to 100
         if (messageQueue.length > 100) {
             messageQueue.shift();
         }
         
-        // Store message in chrome.storage (this triggers onChanged event)
-        const storageData = {
+        // Persist to chrome.storage for cross-page access
+        chrome.storage.local.set({
             lastChatMessage: {
                 type: 'YOUTUBE_CHAT_MESSAGE',
                 data: messageData,
                 timestamp: Date.now()
             }
-        };
-        
-        chrome.storage.local.set(storageData);
-        
-        // Send to all tabs that might be listening
-        chrome.tabs.query({}, (tabs) => {
-            tabs.forEach(tab => {
-                // Skip YouTube pages (they're the source)
-                if (tab.url && (tab.url.includes('youtube.com') || tab.url.includes('youtu.be'))) {
-                    return;
-                }
-                
-                // Try to send message via content script
-                chrome.tabs.sendMessage(tab.id, {
-                    type: 'YOUTUBE_CHAT_MESSAGE',
-                    data: messageData
-                }).catch(() => {
-                    // Tab might not have content script, that's OK
-                });
-            });
         });
         
-        sendResponse({ success: true });
-    } else if (message.type === 'YOUTUBE_CHAT_ERROR') {
-        // Broadcast error to all tabs
+        // Broadcast directly to all open tabs (excluding YouTube itself)
         chrome.tabs.query({}, (tabs) => {
             tabs.forEach(tab => {
-                chrome.tabs.sendMessage(tab.id, {
-                    type: 'YOUTUBE_CHAT_ERROR',
-                    error: message.error
-                }).catch(() => {
-                    // Tab might not have listener, ignore errors
-                });
+                if (tab.url && !tab.url.includes('youtube.com')) {
+                    chrome.tabs.sendMessage(tab.id, {
+                        type: 'YOUTUBE_CHAT_MESSAGE',
+                        data: messageData
+                    }).catch(() => {
+                        // Ignore tabs without listeners
+                    });
+                }
             });
         });
         
         sendResponse({ success: true });
     }
-    
     return true; // Keep channel open for async response
 });
-
-chrome.runtime.onConnect.addListener((port) => {
-    messageQueue.forEach(msg => {
-        port.postMessage({
-            type: 'YOUTUBE_CHAT_MESSAGE',
-            data: msg
-        });
-    });
-    messageQueue = [];
-});
-

@@ -106,3 +106,5 @@ class MusicDetector {
 // Export for use in other scripts
 window.MusicDetector = MusicDetector;
 
+
+

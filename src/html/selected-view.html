@@ -1,0 +1,135 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Selected Message - OBS Overlay</title>
+    <style>
+        body, html {
+            margin: 0;
+            padding: 0;
+            width: 100%;
+            height: 100%;
+            overflow: hidden;
+            background-color: transparent;
+            font-family: 'Segoe UI', Roboto, Helvetica, Arial, sans-serif;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+        }
+
+        #selected-container {
+            width: 90%;
+            max-width: 600px;
+            background: rgba(15, 15, 15, 0.95);
+            border-left: 5px solid #cc0000;
+            padding: 20px;
+            border-radius: 4px;
+            box-shadow: 0 10px 30px rgba(0,0,0,0.5);
+            display: none; /* Hidden by default */
+            animation: slideIn 0.4s cubic-bezier(0.16, 1, 0.3, 1);
+        }
+
+        @keyframes slideIn {
+            from { opacity: 0; transform: translateX(-30px); }
+            to { opacity: 1; transform: translateX(0); }
+        }
+
+        .header {
+            display: flex;
+            align-items: center;
+            gap: 15px;
+            margin-bottom: 15px;
+        }
+
+        .avatar {
+            width: 50px;
+            height: 50px;
+            border-radius: 50%;
+            border: 2px solid #cc0000;
+        }
+
+        .author-info {
+            display: flex;
+            flex-direction: column;
+        }
+
+        .author-name {
+            color: #ffffff;
+            font-size: 20px;
+            font-weight: 800;
+        }
+
+        .timestamp {
+            color: #aaaaaa;
+            font-size: 14px;
+        }
+
+        .content {
+            color: #ffffff;
+            font-size: 24px;
+            line-height: 1.4;
+            font-weight: 600;
+            word-wrap: break-word;
+        }
+
+        .content img {
+            height: 28px;
+            vertical-align: middle;
+        }
+    </style>
+</head>
+<body>
+    <div id="selected-container">
+        <div class="header">
+            <img id="avatar" class="avatar" src="" alt="">
+            <div class="author-info">
+                <span id="author-name" class="author-name"></span>
+                <span id="timestamp" class="timestamp"></span>
+            </div>
+        </div>
+        <div id="content" class="content"></div>
+    </div>
+
+    <script>
+        const container = document.getElementById('selected-container');
+        const avatar = document.getElementById('avatar');
+        const authorName = document.getElementById('author-name');
+        const timestamp = document.getElementById('timestamp');
+        const content = document.getElementById('content');
+
+        function updateDisplay(data) {
+            if (!data) return;
+            
+            avatar.src = data.authorPhoto || '';
+            authorName.textContent = data.author;
+            timestamp.textContent = data.timestamp;
+            content.innerHTML = data.content;
+            
+            container.style.display = 'block';
+        }
+
+        // Listen for selection changes via chrome.storage
+        function initStorageListener() {
+            if (window.chrome && chrome.storage) {
+                chrome.storage.local.get(['SELECTED_CHAT_MESSAGE'], (result) => {
+                    if (result.SELECTED_CHAT_MESSAGE) {
+                        updateDisplay(result.SELECTED_CHAT_MESSAGE);
+                    }
+                });
+
+                chrome.storage.onChanged.addListener((changes) => {
+                    if (changes.SELECTED_CHAT_MESSAGE) {
+                        updateDisplay(changes.SELECTED_CHAT_MESSAGE.newValue);
+                    }
+                });
+            } else {
+                // Retry if bridge.js not yet loaded
+                setTimeout(initStorageListener, 500);
+            }
+        }
+
+        initStorageListener();
+    </script>
+</body>
+</html>
