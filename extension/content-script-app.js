@@ -1,94 +1,55 @@
 /**
- * Content Script for Main App Page
- * This script is injected into the main app page to receive messages from background script
+ * Content Script for App Pages
+ * Injected into local app pages (index.html, chat-view.html) to enable extension communication.
  */
 
 (function() {
     'use strict';
     
-    // Run on any HTML page in the app
-    const url = window.location.href;
-    const isAppPage = url.includes('index.html') || 
-                      url.includes('chat-display.html') ||
-                      url.includes('youtube-live-chat-tts-assistant') ||
-                      url.includes('127.0.0.1') ||
-                      url.includes('localhost');
-    
-    if (!isAppPage) {
-        return;
-    }
-    
-    try {
-        const script = document.createElement('script');
-        script.src = chrome.runtime.getURL('bridge.js');
-        (document.head || document.documentElement).appendChild(script);
-    } catch (e) {
-        // Ignore
-    }
-    
-    // Listen for messages from background script
-    chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
+    // Check if this is one of our app pages
+    const isAppPage = 
+        window.location.href.includes('index.html') || 
+        window.location.href.includes('chat-view.html') || 
+        window.location.href.includes('selected-view.html') ||
+        document.querySelector('title')?.textContent.includes('YouTube Live Chat');
+
+    if (!isAppPage) return;
+
+    // Inject bridge.js to provide chrome.storage proxy to the page
+    const script = document.createElement('script');
+    script.src = chrome.runtime.getURL('bridge.js');
+    (document.head || document.documentElement).appendChild(script);
+
+    // Listen for storage requests from the page (via bridge.js)
+    window.addEventListener('message', (event) => {
+        if (event.data.type === 'FROM_PAGE_STORAGE_GET') {
+            chrome.storage.local.get(event.data.keys, (result) => {
+                window.postMessage({
+                    type: 'FROM_CONTENT_STORAGE_GET_RESULT',
+                    result: result,
+                    requestId: event.data.requestId
+                }, '*');
+            });
+        } else if (event.data.type === 'FROM_PAGE_STORAGE_SET') {
+            chrome.storage.local.set(event.data.items);
+        }
+    });
+
+    // Notify page when storage changes
+    chrome.storage.onChanged.addListener((changes, areaName) => {
+        window.postMessage({
+            type: 'FROM_CONTENT_STORAGE_CHANGED',
+            changes: changes,
+            areaName: areaName
+        }, '*');
+    });
+
+    // Direct message relay from background script
+    chrome.runtime.onMessage.addListener((message) => {
         if (message.type === 'YOUTUBE_CHAT_MESSAGE') {
-            // Dispatch custom event for app.js to listen
             window.dispatchEvent(new CustomEvent('youtubeChatMessage', {
                 detail: message.data
             }));
-            
-            // Also store in localStorage as backup
-            try {
-                localStorage.setItem('youtubeChatMessage', JSON.stringify({
-                    type: 'YOUTUBE_CHAT_MESSAGE',
-                    data: message.data,
-                    timestamp: Date.now()
-                }));
-            } catch (e) {
-                // Ignore
-            }
-            
-            sendResponse({ success: true });
-        } else if (message.type === 'YOUTUBE_CHAT_ERROR') {
-            window.dispatchEvent(new CustomEvent('youtubeChatError', {
-                detail: { error: message.error }
-            }));
-            sendResponse({ success: true });
-        }
-        return true;
-    });
-    
-    // Also listen for storage changes
-    chrome.storage.onChanged.addListener((changes, areaName) => {
-        if (areaName === 'local' && changes.lastChatMessage) {
-            const newValue = changes.lastChatMessage.newValue;
-            if (newValue && newValue.type === 'YOUTUBE_CHAT_MESSAGE') {
-                // Dispatch custom event
-                window.dispatchEvent(new CustomEvent('youtubeChatMessage', {
-                    detail: newValue.data
-                }));
-                
-                // Also store in localStorage as backup
-                try {
-                    localStorage.setItem('youtubeChatMessage', JSON.stringify({
-                        type: 'YOUTUBE_CHAT_MESSAGE',
-                        data: newValue.data,
-                        timestamp: Date.now()
-                    }));
-                } catch (e) {
-                    // Ignore
-                }
-            }
         }
     });
-    
-    // Also poll storage periodically (in case events don't fire)
-    setInterval(() => {
-        chrome.storage.local.get(['lastChatMessage'], (result) => {
-            if (result.lastChatMessage && result.lastChatMessage.type === 'YOUTUBE_CHAT_MESSAGE') {
-                window.dispatchEvent(new CustomEvent('youtubeChatMessage', {
-                    detail: result.lastChatMessage.data
-                }));
-            }
-        });
-    }, 500);
-    
 })();
-

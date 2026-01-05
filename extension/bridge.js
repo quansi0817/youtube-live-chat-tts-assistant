@@ -1,58 +1,38 @@
 /**
- * Bridge Script - Injected into pages to enable extension API access
- * This script is injected via content script to provide chrome.storage access
+ * Bridge script injected into the page to proxy chrome.storage calls
  */
-
 (function() {
-    'use strict';
-    
-    // Only inject if not already injected
-    if (window.YouTubeChatTTSBridge) {
-        return;
-    }
-    
-    window.YouTubeChatTTSBridge = {
-        // Proxy chrome.storage calls
-        storage: {
-            local: {
-                get: function(keys, callback) {
-                    if (typeof chrome !== 'undefined' && chrome.storage) {
-                        chrome.storage.local.get(keys, callback);
-                    } else {
-                        if (callback) callback({});
+    const storageProxy = {
+        local: {
+            get: function(keys, callback) {
+                const requestId = 'get_' + Math.random();
+                window.postMessage({ type: 'FROM_PAGE_STORAGE_GET', keys: keys, requestId: requestId }, '*');
+                
+                const handler = function(event) {
+                    if (event.data.type === 'FROM_CONTENT_STORAGE_GET_RESULT' && event.data.requestId === requestId) {
+                        window.removeEventListener('message', handler);
+                        if (callback) callback(event.data.result);
                     }
-                },
-                set: function(items, callback) {
-                    if (typeof chrome !== 'undefined' && chrome.storage) {
-                        chrome.storage.local.set(items, callback);
-                    } else {
-                        if (callback) callback();
-                    }
-                },
-                onChanged: {
-                    addListener: function(callback) {
-                        if (typeof chrome !== 'undefined' && chrome.storage && chrome.storage.onChanged) {
-                            chrome.storage.onChanged.addListener(callback);
-                        }
-                    }
-                }
-            }
-        },
-        runtime: {
-            onMessage: {
-                addListener: function(callback) {
-                    if (typeof chrome !== 'undefined' && chrome.runtime && chrome.runtime.onMessage) {
-                        chrome.runtime.onMessage.addListener(callback);
-                    }
-                }
+                };
+                window.addEventListener('message', handler);
             },
-            sendMessage: function(message, callback) {
-                if (typeof chrome !== 'undefined' && chrome.runtime) {
-                    chrome.runtime.sendMessage(message, callback);
+            set: function(items, callback) {
+                window.postMessage({ type: 'FROM_PAGE_STORAGE_SET', items: items }, '*');
+                if (callback) callback();
+            },
+            onChanged: {
+                addListener: function(callback) {
+                    window.addEventListener('message', function(event) {
+                        if (event.data.type === 'FROM_CONTENT_STORAGE_CHANGED') {
+                            callback(event.data.changes, event.data.areaName);
+                        }
+                    });
                 }
             }
         }
     };
-    
-})();
 
+    // Expose proxy to the page's window object
+    window.chrome = window.chrome || {};
+    window.chrome.storage = storageProxy;
+})();

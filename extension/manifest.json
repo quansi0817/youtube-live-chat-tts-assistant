@@ -2,42 +2,19 @@
   "manifest_version": 3,
   "name": "YouTube Live Chat TTS Assistant",
   "version": "1.0.0",
-  "description": "Automatically scrape YouTube live chat and enable TTS functionality",
-  "icons": {
-    "16": "icons/icon16.png",
-    "48": "icons/icon48.png",
-    "128": "icons/icon128.png"
-  },
+  "description": "Automated YouTube Live Chat scraping for TTS and OBS overlays.",
   "permissions": [
-    "scripting",
+    "storage",
     "tabs",
-    "storage"
+    "scripting",
+    "activeTab"
   ],
   "host_permissions": [
     "https://www.youtube.com/*",
-    "https://youtube.com/*"
-  ],
-  "content_scripts": [
-    {
-      "js": ["content-script.js"],
-      "matches": [
-        "https://www.youtube.com/live_chat*",
-        "https://youtube.com/live_chat*"
-      ],
-      "run_at": "document_idle"
-    },
-    {
-      "js": ["content-script-app.js"],
-      "matches": [
-        "file:///*/*.html",
-        "http://localhost/*",
-        "http://127.0.0.1/*",
-        "http://*/*",
-        "https://*/*"
-      ],
-      "run_at": "document_idle",
-      "all_frames": false
-    }
+    "https://www.youtube.com/live_chat*",
+    "file:///*",
+    "http://localhost/*",
+    "http://127.0.0.1/*"
   ],
   "background": {
     "service_worker": "background.js"
@@ -50,24 +27,44 @@
       "128": "icons/icon128.png"
     }
   },
-  "web_accessible_resources": [
+  "icons": {
+    "16": "icons/icon16.png",
+    "48": "icons/icon48.png",
+    "128": "icons/icon128.png"
+  },
+  "content_scripts": [
     {
-      "resources": ["injected-script.js", "bridge.js"],
       "matches": [
-        "https://www.youtube.com/*",
-        "https://youtube.com/*",
-        "http://127.0.0.1/*",
+        "https://www.youtube.com/live_chat*",
+        "https://www.youtube.com/live_chat_replay*"
+      ],
+      "js": [
+        "content-script.js"
+      ],
+      "all_frames": true,
+      "run_at": "document_end"
+    },
+    {
+      "matches": [
+        "file:///*",
         "http://localhost/*",
-        "file:///*"
-      ]
+        "http://127.0.0.1/*"
+      ],
+      "js": [
+        "content-script-app.js"
+      ],
+      "all_frames": true,
+      "run_at": "document_start"
     }
   ],
-  "externally_connectable": {
-    "matches": [
-      "http://127.0.0.1/*",
-      "http://localhost/*",
-      "file:///*"
-    ]
-  }
+  "web_accessible_resources": [
+    {
+      "resources": [
+        "bridge.js"
+      ],
+      "matches": [
+        "<all_urls>"
+      ]
+    }
+  ]
 }
-

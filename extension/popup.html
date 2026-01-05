@@ -1,77 +1,73 @@
 <!DOCTYPE html>
-<html lang="en">
+<html>
 <head>
     <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>YouTube Chat TTS Assistant</title>
     <style>
         body {
             width: 300px;
             padding: 15px;
-            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
             margin: 0;
+            background: #f9f9f9;
         }
-        h3 {
-            margin: 0 0 10px 0;
-            font-size: 16px;
-            color: #2d3748;
+        h2 {
+            margin-top: 0;
+            color: #cc0000;
+            font-size: 18px;
+            border-bottom: 2px solid #eee;
+            padding-bottom: 10px;
         }
         .status {
-            padding: 8px;
-            border-radius: 4px;
-            margin-bottom: 10px;
-            font-size: 12px;
+            display: flex;
+            align-items: center;
+            margin: 15px 0;
+            font-size: 14px;
         }
-        .status.active {
-            background: #c6f6d5;
-            color: #22543d;
-        }
-        .status.inactive {
-            background: #fed7d7;
-            color: #742a2a;
+        .status-dot {
+            width: 10px;
+            height: 10px;
+            background: #4caf50;
+            border-radius: 50%;
+            margin-right: 8px;
+            box-shadow: 0 0 5px rgba(76, 175, 80, 0.5);
         }
         .info {
+            background: #fff;
+            padding: 10px;
+            border-radius: 6px;
+            border: 1px solid #ddd;
             font-size: 12px;
-            color: #718096;
-            margin-top: 10px;
-            line-height: 1.5;
+            color: #666;
+            line-height: 1.6;
         }
-        button {
-            width: 100%;
-            padding: 8px;
-            background: #4299e1;
-            color: white;
-            border: none;
-            border-radius: 4px;
-            cursor: pointer;
-            font-size: 14px;
-            margin-top: 10px;
-        }
-        button:hover {
-            background: #3182ce;
-        }
-        .link {
-            color: #4299e1;
-            text-decoration: none;
-            font-size: 12px;
+        .btn {
             display: block;
-            margin-top: 10px;
+            width: 100%;
+            padding: 10px;
+            margin-top: 15px;
+            background: #cc0000;
+            color: white;
+            text-align: center;
+            text-decoration: none;
+            border-radius: 4px;
+            font-weight: bold;
+            transition: background 0.3s;
         }
-        .link:hover {
-            text-decoration: underline;
+        .btn:hover {
+            background: #aa0000;
         }
     </style>
 </head>
 <body>
-    <h3>🎥 YouTube Chat TTS</h3>
-    <div id="status" class="status inactive">Extension Active</div>
-    <div class="info">
-        This extension automatically scrapes YouTube live chat messages when you visit a live chat page.
+    <h2>YouTube Chat Assistant</h2>
+    <div class="status">
+        <div class="status-dot"></div>
+        <span>Scraper Running</span>
     </div>
-    <button id="openApp">Open Main App</button>
-    <a href="https://www.youtube.com/live_chat" target="_blank" class="link">Open YouTube Live Chat</a>
-    
+    <div class="info">
+        This extension automatically captures YouTube Live Chat messages and sends them to your local overlay pages.
+    </div>
+    <a href="#" id="open-app" class="btn">Open Main Dashboard</a>
     <script src="popup.js"></script>
 </body>
 </html>
-
