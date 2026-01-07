@@ -1,119 +1,214 @@
 /**
  * Main Application Logic
- * Handles message processing, TTS, and UI updates.
+ * Optimized for Chinese TTS with Speed control and Custom Voice IDs.
  */
 
 class App {
     constructor() {
-        this.messages = [];
-        this.maxMessages = 100;
-        this.isTTSEnabled = true;
-        this.seenMessageIds = new Set();
-        
-        // Initialize components
         this.initEventListeners();
         this.initExtensionListener();
-        
-        // Load initial settings
         this.loadSettings();
     }
 
     initEventListeners() {
-        // TTS Settings
-        const ttsVolume = document.getElementById('ttsVolume');
-        if (ttsVolume) {
-            ttsVolume.addEventListener('input', (e) => {
-                const vol = e.target.value;
-                document.getElementById('volumeValue').textContent = vol;
-                localStorage.setItem('ttsVolume', vol);
+        const settings = ['ttsVolume', 'ttsProvider', 'ttsApiKey', 'ttsVoice', 'ttsSpeed'];
+        settings.forEach(id => {
+            const el = document.getElementById(id);
+            if (el) {
+                const event = (el.type === 'range' || el.type === 'password') ? 'input' : 'change';
+                el.addEventListener(event, (e) => {
+                    localStorage.setItem(id, e.target.value);
+                    if (id === 'ttsVolume') document.getElementById('volumeValue').textContent = e.target.value;
+                    if (id === 'ttsSpeed') document.getElementById('speedValue').textContent = (e.target.value / 100).toFixed(1);
+                    if (id === 'ttsProvider') this.updateVoiceOptions();
+                });
+            }
+        });
+
+        const testBtn = document.getElementById('testTtsBtn');
+        if (testBtn) {
+            testBtn.addEventListener('click', () => {
+                this.speakText("你好，这是中文语音测试。Hello, this is a test.");
             });
         }
 
-        const ttsProvider = document.getElementById('ttsProvider');
-        if (ttsProvider) {
-            ttsProvider.addEventListener('change', (e) => {
-                localStorage.setItem('ttsProvider', e.target.value);
-            });
+        // Initialize voice options on load
+        this.updateVoiceOptions();
+    }
+
+    updateVoiceOptions() {
+        const provider = document.getElementById('ttsProvider').value;
+        const voiceSelect = document.getElementById('ttsVoice');
+        const currentValue = voiceSelect.value;
+
+        // Store original options if not already stored
+        if (!voiceSelect.dataset.originalOptions) {
+            voiceSelect.dataset.originalOptions = voiceSelect.innerHTML;
+        }
+
+        // Clear and rebuild options
+        voiceSelect.innerHTML = '';
+
+        // Parse and filter options
+        const tempDiv = document.createElement('div');
+        tempDiv.innerHTML = voiceSelect.dataset.originalOptions;
+        const allOptions = tempDiv.querySelectorAll('option[data-provider]');
+        let hasMatchingOption = false;
+
+        allOptions.forEach(option => {
+            if (option.getAttribute('data-provider') === provider) {
+                voiceSelect.appendChild(option.cloneNode(true));
+                if (option.value === currentValue) hasMatchingOption = true;
+            }
+        });
+
+        // If current selection doesn't match new provider, select first available
+        if (!hasMatchingOption && voiceSelect.options.length > 0) {
+            voiceSelect.value = voiceSelect.options[0].value;
+            localStorage.setItem('ttsVoice', voiceSelect.value);
         }
     }
 
-    /**
-     * Listen for messages from the browser extension
-     */
     initExtensionListener() {
-        // 1. Listen for direct CustomEvent (dispatched by content-script-app.js)
-        window.addEventListener('youtubeChatMessage', (event) => {
-            this.handleNewMessage(event.detail);
-        });
-
-        // 2. Fallback/Initial load from chrome.storage
         if (window.chrome && chrome.storage) {
             chrome.storage.onChanged.addListener((changes) => {
-                if (changes.lastChatMessage) {
-                    this.handleNewMessage(changes.lastChatMessage.newValue.data);
+                if (changes.SELECTED_CHAT_MESSAGE) {
+                    const msg = changes.SELECTED_CHAT_MESSAGE.newValue;
+                    if (msg) {
+                        const cleanContent = msg.content.replace(/<[^>]*>/g, '').trim();
+                        const textToRead = `${msg.author}说：${cleanContent}`;
+                        this.speakText(textToRead);
+                    }
                 }
             });
         }
     }
 
-    /**
-     * Process incoming chat messages
-     */
-    handleNewMessage(data) {
-        if (!data || this.seenMessageIds.has(data.id)) return;
-        
-        this.seenMessageIds.add(data.id);
-        
-        // Maintain message history limit
-        if (this.seenMessageIds.size > 500) {
-            const firstId = this.seenMessageIds.values().next().value;
-            this.seenMessageIds.delete(firstId);
-        }
+    async speakText(text) {
+        if (!text) return;
 
-        // Trigger TTS if enabled
-        if (this.isTTSEnabled) {
-            this.speakMessage(data);
+        const provider = localStorage.getItem('ttsProvider') || 'openai';
+        const apiKey = localStorage.getItem('ttsApiKey') || '';
+        const voice = localStorage.getItem('ttsVoice') || '';
+        const volume = (localStorage.getItem('ttsVolume') || 100) / 100;
+        const speed = (localStorage.getItem('ttsSpeed') || 100) / 100;
+
+        console.log(`[TTS] ${provider} | Voice: ${voice} | Speed: ${speed}`);
+
+        switch(provider) {
+            case 'system':
+                const utterance = new SpeechSynthesisUtterance(text);
+                utterance.volume = volume;
+                utterance.rate = speed;
+                utterance.lang = 'zh-CN';
+                window.speechSynthesis.speak(utterance);
+                break;
+            case 'openai':
+                this.playOpenAITTS(text, apiKey, voice || 'nova', volume, speed);
+                break;
+            case 'elevenlabs':
+                this.playElevenLabsTTS(text, apiKey, voice || '21m00Tcm4TlvDq8ikWAM', volume, speed);
+                break;
+            case 'google':
+                this.playGoogleTTS(text, apiKey, voice || 'zh-CN-Neural2-A', volume, speed);
+                break;
         }
     }
 
     /**
-     * Speak message using configured TTS provider
+     * OpenAI TTS (Note: OpenAI doesn't have 'gpt-4o-mini-tts' model.
+     * This uses the standard 'tts-1' model for high-quality voice synthesis)
      */
-    speakMessage(data) {
-        // Clean content for TTS (remove HTML tags/emojis)
-        const cleanText = data.content.replace(/<[^>]*>/g, '').trim();
-        if (!cleanText) return;
+    async playOpenAITTS(text, apiKey, voice, volume, speed) {
+        if (!apiKey) return alert("Missing OpenAI API Key");
+        try {
+            const response = await fetch('https://api.openai.com/v1/audio/speech', {
+                method: 'POST',
+                headers: { 'Authorization': `Bearer ${apiKey}`, 'Content-Type': 'application/json' },
+                body: JSON.stringify({
+                    model: 'tts-1', // OpenAI's highest quality TTS model (not gpt-4o-mini-tts)
+                    input: text,
+                    voice: voice,
+                    speed: speed
+                })
+            });
+            this.playAudioFromResponse(response, volume);
+        } catch (err) { console.error("OpenAI Error:", err); }
+    }
 
-        const provider = localStorage.getItem('ttsProvider') || 'system';
-        const volume = (localStorage.getItem('ttsVolume') || 100) / 100;
+    /**
+     * ElevenLabs TTS (Optimized for Chinese Multilingual V2)
+     */
+    async playElevenLabsTTS(text, apiKey, voiceId, volume, speed) {
+        if (!apiKey) return alert("Missing ElevenLabs API Key");
+        try {
+            const response = await fetch(`https://api.elevenlabs.io/v1/text-to-speech/${voiceId}`, {
+                method: 'POST',
+                headers: { 'xi-api-key': apiKey, 'Content-Type': 'application/json' },
+                body: JSON.stringify({ 
+                    text: text, 
+                    model_id: 'eleven_multilingual_v2' // Best for Chinese
+                })
+            });
+            this.playAudioFromResponse(response, volume);
+        } catch (err) { console.error("ElevenLabs Error:", err); }
+    }
 
-        console.log(`Speaking (${provider}): ${data.author} says ${cleanText}`);
+    /**
+     * Google Cloud TTS (Neural2 Optimized)
+     */
+    async playGoogleTTS(text, apiKey, voiceName, volume, speed) {
+        if (!apiKey) return alert("Missing Google API Key");
+        try {
+            const response = await fetch(`https://texttospeech.googleapis.com/v1/text:synthesize?key=${apiKey}`, {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({
+                    input: { text: text },
+                    voice: { languageCode: 'zh-CN', name: voiceName }, // e.g. zh-CN-Neural2-A
+                    audioConfig: { 
+                        audioEncoding: 'MP3',
+                        speakingRate: speed // 0.25 - 4.0
+                    }
+                })
+            });
+            const data = await response.json();
+            if (data.audioContent) {
+                const audio = new Audio(`data:audio/mp3;base64,${data.audioContent}`);
+                audio.volume = volume;
+                audio.play();
+            }
+        } catch (err) { console.error("Google Error:", err); }
+    }
 
-        if (provider === 'system') {
-            const utterance = new SpeechSynthesisUtterance(`${data.author} says ${cleanText}`);
-            utterance.volume = volume;
-            window.speechSynthesis.speak(utterance);
-        } else {
-            // Placeholder for Cloud TTS (OpenAI/ElevenLabs)
-            // This would call your tts-manager.js logic
+    async playAudioFromResponse(response, volume) {
+        if (!response.ok) {
+            const err = await response.json();
+            alert(`API Error: ${err.error?.message || 'Check your API Key'}`);
+            return;
         }
+        const blob = await response.blob();
+        const audio = new Audio(URL.createObjectURL(blob));
+        audio.volume = volume;
+        audio.play();
     }
 
     loadSettings() {
-        const volume = localStorage.getItem('ttsVolume') || 100;
-        const provider = localStorage.getItem('ttsProvider') || 'system';
-        
-        if (document.getElementById('ttsVolume')) {
-            document.getElementById('ttsVolume').value = volume;
-            document.getElementById('volumeValue').textContent = volume;
-        }
-        if (document.getElementById('ttsProvider')) {
-            document.getElementById('ttsProvider').value = provider;
-        }
+        ['ttsVolume', 'ttsProvider', 'ttsApiKey', 'ttsVoice', 'ttsSpeed'].forEach(id => {
+            const val = localStorage.getItem(id);
+            const el = document.getElementById(id);
+            if (val && el) {
+                el.value = val;
+                if (id === 'ttsVolume') document.getElementById('volumeValue').textContent = val;
+                if (id === 'ttsSpeed') document.getElementById('speedValue').textContent = (val / 100).toFixed(1);
+            }
+        });
+
+        // Initialize voice options after settings are loaded
+        this.updateVoiceOptions();
     }
 }
 
-// Initialize the app when DOM is ready
 document.addEventListener('DOMContentLoaded', () => {
     window.app = new App();
 });
