@@ -16,10 +16,6 @@
             border-radius: 8px;
             border: 1px solid #e2e8f0;
         }
-        .btn-group {
-            display: flex;
-            gap: 10px;
-        }
         .bg-control {
             margin-left: auto;
             display: flex;
@@ -29,6 +25,25 @@
             padding: 5px 15px;
             border-radius: 20px;
             box-shadow: 0 1px 3px rgba(0,0,0,0.1);
+        }
+        .grid-settings {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 15px;
+        }
+        .setting-item {
+            display: flex;
+            flex-direction: column;
+            gap: 5px;
+        }
+        .full-width {
+            grid-column: span 2;
+        }
+        input.input, select.select {
+            padding: 8px;
+            border: 1px solid #cbd5e0;
+            border-radius: 4px;
+            font-size: 14px;
         }
     </style>
 </head>
@@ -41,83 +56,94 @@
         <main class="main-content">
             <div class="card">
                 <div class="card-header">
-                    <h2>Dashboard Controls</h2>
+                    <h2>TTS & Overlay Dashboard</h2>
                 </div>
                 <div class="card-body">
                     <div class="control-group">
                         <div class="btn-group">
-                            <a href="chat-view.html" id="chatViewLink" target="_blank" class="btn btn-primary">Open Chat View (OBS)</a>
-                            <a href="selected-view.html" target="_blank" class="btn btn-secondary">Open Selected View (OBS)</a>
+                            <a href="chat-view.html" id="chatViewLink" target="_blank" class="btn btn-primary">Open Chat View</a>
+                            <a href="selected-view.html" target="_blank" class="btn btn-secondary">Open Selected View</a>
                         </div>
-                        
                         <div class="bg-control">
-                            <label style="font-size: 13px; font-weight: 600;">Chat BG Opacity:</label>
+                            <label>Chat BG:</label>
                             <input type="range" id="bgOpacity" min="0" max="100" value="0">
-                            <span id="opacityVal" style="font-size: 13px; min-width: 35px;">0%</span>
+                            <span id="opacityVal">0%</span>
                         </div>
                     </div>
 
                     <!-- TTS Settings -->
                     <div class="settings-section">
-                        <h3>🔊 TTS & Voice Settings</h3>
-                        <div class="grid-settings" style="display: grid; grid-template-columns: 1fr 1fr; gap: 20px;">
+                        <h3>🔊 Voice Settings (AI Optimized for Chinese)</h3>
+                        <div class="grid-settings">
                             <div class="setting-item">
-                                <label>TTS Provider:</label>
+                                <label>Provider:</label>
                                 <select id="ttsProvider" class="select">
-                                    <option value="system">System Default (Free)</option>
-                                    <option value="openai">OpenAI TTS</option>
-                                    <option value="elevenlabs">ElevenLabs</option>
+                                    <option value="openai">OpenAI (Standard)</option>
+                                    <option value="elevenlabs">ElevenLabs (Multilingual V2)</option>
+                                    <option value="google">Google Cloud (Neural2)</option>
+                                    <option value="system">System Default</option>
                                 </select>
                             </div>
                             <div class="setting-item">
-                                <label>Volume:</label>
-                                <input type="range" id="ttsVolume" class="slider" min="0" max="100" value="100">
+                                <label>Voice Selection:</label>
+                                <select id="ttsVoice" class="select">
+                                    <!-- OpenAI Voices -->
+                                    <option value="nova" data-provider="openai">Nova (Female, Warm, Best for Chinese)</option>
+                                    <option value="alloy" data-provider="openai">Alloy (Female, Clear)</option>
+                                    <option value="echo" data-provider="openai">Echo (Male, Calm)</option>
+                                    <option value="fable" data-provider="openai">Fable (Female, Storyteller)</option>
+                                    <option value="onyx" data-provider="openai">Onyx (Male, Deep)</option>
+                                    <option value="shimmer" data-provider="openai">Shimmer (Female, Bright)</option>
+                                    <!-- ElevenLabs Chinese Voices -->
+                                    <option value="21m00Tcm4TlvDq8ikWAM" data-provider="elevenlabs">Rachel (Multilingual, Excellent Chinese)</option>
+                                    <option value="AZnzlk1XvdvUeBnXmlld" data-provider="elevenlabs">Drew (Deep Male)</option>
+                                    <option value="29vD33N1CtxCmqQRPOHJ" data-provider="elevenlabs">Clyde (Warm Male)</option>
+                                    <option value="IKne3meq5aSn9XLyUdCD" data-provider="elevenlabs">Paul (Clear Male)</option>
+                                    <!-- Google Neural2 Voices -->
+                                    <option value="zh-CN-Neural2-A" data-provider="google">Neural2-A (Female, Natural)</option>
+                                    <option value="zh-CN-Neural2-B" data-provider="google">Neural2-B (Male, Standard)</option>
+                                    <option value="zh-CN-Neural2-C" data-provider="google">Neural2-C (Male, News Style)</option>
+                                    <option value="zh-CN-Neural2-D" data-provider="google">Neural2-D (Female, Warm)</option>
+                                </select>
+                            </div>
+                            <div class="setting-item">
+                                <label>Volume: <span id="volumeValue">100</span>%</label>
+                                <input type="range" id="ttsVolume" min="0" max="100" value="100">
+                            </div>
+                            <div class="setting-item">
+                                <label>Speed: <span id="speedValue">1.0</span>x</label>
+                                <input type="range" id="ttsSpeed" min="50" max="200" value="100">
+                            </div>
+                            <div class="setting-item full-width">
+                                <label>API Key:</label>
+                                <input type="password" id="ttsApiKey" class="input" placeholder="Enter your API Key here">
                             </div>
                         </div>
-                        <div class="setting-item" style="margin-top: 15px;">
-                            <label>API Key (Optional):</label>
-                            <input type="password" id="ttsApiKey" class="input" placeholder="Enter API key for cloud providers">
-                        </div>
+                        <button id="testTtsBtn" class="btn btn-secondary" style="margin-top: 15px; width: 100%;">Test Voice Settings</button>
                     </div>
                 </div>
             </div>
         </main>
     </div>
 
+    <script src="../js/app.js"></script>
     <script>
         const settingsChannel = new BroadcastChannel('chat-settings');
         const bgOpacity = document.getElementById('bgOpacity');
         const opacityVal = document.getElementById('opacityVal');
         
-        // Handle Background Transparency
         bgOpacity.addEventListener('input', (e) => {
             const val = e.target.value;
             opacityVal.textContent = val + '%';
-            const alpha = val / 100;
-            const color = `rgba(0, 0, 0, ${alpha})`;
-            
+            const color = `rgba(0, 0, 0, ${val / 100})`;
             settingsChannel.postMessage({ type: 'UPDATE_BG_COLOR', color: color });
             localStorage.setItem('chatBgColor', color);
         });
 
-        // Initialize from storage
-        const savedColor = localStorage.getItem('chatBgColor');
-        if (savedColor) {
-            const rgba = savedColor.match(/[\d.]+/g);
-            if (rgba && rgba.length === 4) {
-                const alphaPercent = Math.round(parseFloat(rgba[3]) * 100);
-                bgOpacity.value = alphaPercent;
-                opacityVal.textContent = alphaPercent + '%';
-            }
-        }
-
-        // Open chat view in a dedicated window
         document.getElementById('chatViewLink').addEventListener('click', (e) => {
             window.open('chat-view.html', 'chat-view', 'width=400,height=800');
             e.preventDefault();
         });
     </script>
-    <script src="../js/tts-manager.js"></script>
-    <script src="../js/app.js"></script>
 </body>
 </html>
