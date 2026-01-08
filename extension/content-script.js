@@ -98,10 +98,21 @@
                 messageContent = allTextNodes.join(' ').trim();
             }
             
-            // Skip empty messages - check both HTML and text content
-            const textOnly = messageContent.replace(/<[^>]*>/g, '').trim();
-            if (!messageContent || messageContent.length === 0 || !textOnly || textOnly.length === 0) {
+            // Skip empty messages - allow emoji-only messages (images)
+            if (!messageContent || messageContent.length === 0) {
                 return null; // Don't send empty messages
+            }
+            
+            // Check if content has actual content (text, emoji/images, or both)
+            // Create a temporary element to check for images and text
+            const tempDiv = document.createElement('div');
+            tempDiv.innerHTML = messageContent;
+            const hasText = tempDiv.textContent.trim().length > 0;
+            const hasImages = tempDiv.querySelectorAll('img').length > 0;
+            
+            // Allow messages with text, emoji (images), or both
+            if (!hasText && !hasImages) {
+                return null; // Don't send truly empty messages
             }
             
             const messageId = element.id || `msg_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`;

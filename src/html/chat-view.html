@@ -14,7 +14,7 @@
             height: 100%;
             overflow: hidden;
             background-color: transparent; 
-            font-family: 'Noto Sans SC', sans-serif;
+            font-family: 'Noto Sans SC', 'Microsoft YaHei', 'SimHei', 'Arial', sans-serif;
         }
 
         #chat-container {
@@ -119,12 +119,19 @@
             const saved = localStorage.getItem('chatHistory');
             if (saved) {
                 messageHistory = JSON.parse(saved);
-                // Filter out empty messages before rendering - check both HTML and text
+                // Filter out empty messages before rendering - allow emoji-only messages
                 messageHistory = messageHistory.filter(msg => {
                     if (!msg || !msg.author) return false;
                     const content = (msg.content || '').trim();
-                    const textOnly = content.replace(/<[^>]*>/g, '').trim();
-                    return content && content.length > 0 && textOnly && textOnly.length > 0;
+                    if (!content || content.length === 0) return false;
+                    
+                    // Check if content has text, emoji, or images
+                    const tempDiv = document.createElement('div');
+                    tempDiv.innerHTML = content;
+                    const hasText = tempDiv.textContent.trim().length > 0;
+                    const hasImages = tempDiv.querySelectorAll('img').length > 0;
+                    
+                    return hasText || hasImages;
                 });
                 // Update localStorage with cleaned history
                 localStorage.setItem('chatHistory', JSON.stringify(messageHistory));
@@ -139,10 +146,20 @@
             
             // Check if content is empty - strip HTML tags first
             let content = (data.content || '').trim();
-            // Remove HTML tags to check if there's actual text
-            const textOnly = content.replace(/<[^>]*>/g, '').trim();
-            if (!content || content.length === 0 || !textOnly || textOnly.length === 0) {
+            if (!content || content.length === 0) {
                 return; // Skip empty messages
+            }
+            
+            // Check if content has actual content (text, emoji, or images)
+            // Remove HTML tags but keep img tags (they represent emoji/images)
+            const tempDiv = document.createElement('div');
+            tempDiv.innerHTML = content;
+            const hasText = tempDiv.textContent.trim().length > 0;
+            const hasImages = tempDiv.querySelectorAll('img').length > 0;
+            
+            // Allow messages with text, emoji (images), or both
+            if (!hasText && !hasImages) {
+                return; // Skip truly empty messages
             }
             
             seenIds.add(data.id);
@@ -155,18 +172,27 @@
             const item = document.createElement('div');
             item.className = 'message-item';
             item.onclick = () => {
-                // Method 1: Store in chrome.storage
-                if (window.chrome && chrome.storage) {
-                    chrome.storage.local.set({ 'SELECTED_CHAT_MESSAGE': data });
+                // Method 1: Store in chrome.storage (if available)
+                try {
+                    if (window.chrome && chrome.storage && chrome.storage.local) {
+                        chrome.storage.local.set({ 'SELECTED_CHAT_MESSAGE': data });
+                    }
+                } catch (e) {
+                    // Extension not available, use localStorage as fallback
+                    localStorage.setItem('SELECTED_CHAT_MESSAGE', JSON.stringify(data));
                 }
                 
                 // Method 2: Broadcast via BroadcastChannel for immediate update
-                const selectedChannel = new BroadcastChannel('selected-message');
-                selectedChannel.postMessage({
-                    type: 'SELECTED_CHAT_MESSAGE',
-                    data: data
-                });
-                selectedChannel.close();
+                try {
+                    const selectedChannel = new BroadcastChannel('selected-message');
+                    selectedChannel.postMessage({
+                        type: 'SELECTED_CHAT_MESSAGE',
+                        data: data
+                    });
+                    selectedChannel.close();
+                } catch (e) {
+                    // BroadcastChannel not available, ignore
+                }
             };
 
             item.innerHTML = `
@@ -182,9 +208,33 @@
             }, 10);
         }
 
+        // Listen for messages from extension (if available)
         window.addEventListener('youtubeChatMessage', (e) => {
-            renderMessage(e.detail);
+            if (e && e.detail) {
+                renderMessage(e.detail);
+            }
         });
+        
+        // Fallback: Check localStorage periodically for new messages
+        // This helps when extension is not available (e.g., in OBS browser source)
+        let lastMessageCount = messageHistory.length;
+        setInterval(() => {
+            try {
+                const saved = localStorage.getItem('chatHistory');
+                if (saved) {
+                    const currentHistory = JSON.parse(saved);
+                    if (currentHistory.length > lastMessageCount) {
+                        // New messages detected, render them
+                        currentHistory.slice(lastMessageCount).forEach(msg => {
+                            renderMessage(msg, false);
+                        });
+                        lastMessageCount = currentHistory.length;
+                    }
+                }
+            } catch (e) {
+                // Ignore errors
+            }
+        }, 500);
 
         const settingsChannel = new BroadcastChannel('chat-settings');
         settingsChannel.onmessage = (e) => {

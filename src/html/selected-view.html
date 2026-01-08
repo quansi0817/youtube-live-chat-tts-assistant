@@ -14,7 +14,7 @@
             height: 100%;
             overflow: hidden;
             background-color: transparent;
-            font-family: 'Noto Sans SC', 'Microsoft YaHei', sans-serif;
+            font-family: 'Noto Sans SC', 'Microsoft YaHei', 'SimHei', 'Arial', sans-serif;
             display: flex;
             align-items: flex-start;
             justify-content: flex-start;
@@ -116,34 +116,75 @@
             container.style.display = 'block';
         }
 
-        // Method 1: Listen to chrome.storage changes
+        // Method 1: Listen to chrome.storage changes (with localStorage fallback)
         function initStorageListener() {
-            if (window.chrome && chrome.storage) {
-                // Initial load
-                chrome.storage.local.get(['SELECTED_CHAT_MESSAGE'], (result) => {
-                    if (result.SELECTED_CHAT_MESSAGE) {
-                        updateDisplay(result.SELECTED_CHAT_MESSAGE);
-                    }
-                });
-
-                // Listen for changes (real-time updates)
-                chrome.storage.onChanged.addListener((changes) => {
-                    if (changes.SELECTED_CHAT_MESSAGE && changes.SELECTED_CHAT_MESSAGE.newValue) {
-                        updateDisplay(changes.SELECTED_CHAT_MESSAGE.newValue);
-                    }
-                });
-
-                // Aggressive polling (check every 200ms) to ensure updates
-                setInterval(() => {
+            // Try chrome.storage first
+            try {
+                if (window.chrome && chrome.storage && chrome.storage.local) {
+                    // Initial load
                     chrome.storage.local.get(['SELECTED_CHAT_MESSAGE'], (result) => {
                         if (result.SELECTED_CHAT_MESSAGE) {
                             updateDisplay(result.SELECTED_CHAT_MESSAGE);
                         }
                     });
-                }, 200);
-            } else {
-                setTimeout(initStorageListener, 200);
+
+                    // Listen for changes (real-time updates)
+                    if (chrome.storage.onChanged) {
+                        chrome.storage.onChanged.addListener((changes) => {
+                            if (changes.SELECTED_CHAT_MESSAGE && changes.SELECTED_CHAT_MESSAGE.newValue) {
+                                updateDisplay(changes.SELECTED_CHAT_MESSAGE.newValue);
+                            }
+                        });
+                    }
+
+                    // Aggressive polling (check every 200ms) to ensure updates
+                    setInterval(() => {
+                        try {
+                            chrome.storage.local.get(['SELECTED_CHAT_MESSAGE'], (result) => {
+                                if (result.SELECTED_CHAT_MESSAGE) {
+                                    updateDisplay(result.SELECTED_CHAT_MESSAGE);
+                                }
+                            });
+                        } catch (e) {
+                            // Fallback to localStorage
+                            checkLocalStorage();
+                        }
+                    }, 200);
+                    return;
+                }
+            } catch (e) {
+                // Chrome storage not available, fall through to localStorage
             }
+            
+            // Fallback to localStorage polling
+            function checkLocalStorage() {
+                try {
+                    const saved = localStorage.getItem('SELECTED_CHAT_MESSAGE');
+                    if (saved) {
+                        const data = JSON.parse(saved);
+                        updateDisplay(data);
+                    }
+                } catch (e) {
+                    // Ignore errors
+                }
+            }
+            
+            // Initial load from localStorage
+            checkLocalStorage();
+            
+            // Poll localStorage every 200ms
+            setInterval(checkLocalStorage, 200);
+            
+            // Listen for storage events (for same-origin updates)
+            window.addEventListener('storage', (e) => {
+                if (e.key === 'SELECTED_CHAT_MESSAGE' && e.newValue) {
+                    try {
+                        updateDisplay(JSON.parse(e.newValue));
+                    } catch (e) {
+                        // Ignore parse errors
+                    }
+                }
+            });
         }
 
         // Method 2: Listen to postMessage (from bridge.js)
