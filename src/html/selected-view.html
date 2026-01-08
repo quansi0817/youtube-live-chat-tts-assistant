@@ -5,6 +5,8 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Selected Message - OBS Overlay</title>
     <style>
+        @import url('https://fonts.googleapis.com/css2?family=Noto+Sans+SC:wght@400;500;700&display=swap');
+        
         body, html {
             margin: 0;
             padding: 0;
@@ -12,70 +14,73 @@
             height: 100%;
             overflow: hidden;
             background-color: transparent;
-            font-family: 'Segoe UI', Roboto, Helvetica, Arial, sans-serif;
+            font-family: 'Noto Sans SC', 'Microsoft YaHei', sans-serif;
             display: flex;
-            align-items: center;
-            justify-content: center;
+            align-items: flex-start;
+            justify-content: flex-start;
         }
 
         #selected-container {
-            width: 90%;
-            max-width: 600px;
-            background: rgba(15, 15, 15, 0.95);
-            border-left: 5px solid #cc0000;
-            padding: 20px;
-            border-radius: 4px;
-            box-shadow: 0 10px 30px rgba(0,0,0,0.5);
-            display: none; /* Hidden by default */
+            margin: 20px;
+            width: auto;
+            max-width: 95vw;
+            min-width: 300px;
+            background: linear-gradient(145deg, rgba(10, 15, 30, 0.98) 0%, rgba(20, 30, 60, 0.98) 100%);
+            border-left: 6px solid #1e3a8a;
+            border-radius: 12px;
+            padding: 20px 25px;
+            box-shadow: 
+                0 15px 45px rgba(0, 0, 0, 0.6),
+                inset 0 1px 1px rgba(255, 255, 255, 0.05);
+            display: none;
             animation: slideIn 0.4s cubic-bezier(0.16, 1, 0.3, 1);
+            backdrop-filter: blur(8px);
         }
 
         @keyframes slideIn {
-            from { opacity: 0; transform: translateX(-30px); }
+            from { opacity: 0; transform: translateX(-40px); }
             to { opacity: 1; transform: translateX(0); }
         }
 
         .header {
             display: flex;
             align-items: center;
-            gap: 15px;
+            gap: 18px;
             margin-bottom: 15px;
         }
 
         .avatar {
-            width: 50px;
-            height: 50px;
+            width: 64px;
+            height: 64px;
             border-radius: 50%;
-            border: 2px solid #cc0000;
-        }
-
-        .author-info {
-            display: flex;
-            flex-direction: column;
+            border: 3px solid #1e3a8a;
+            box-shadow: 0 0 20px rgba(30, 58, 138, 0.3);
+            flex-shrink: 0;
         }
 
         .author-name {
-            color: #ffffff;
-            font-size: 20px;
+            color: #60a5fa;
+            font-size: 24px;
             font-weight: 800;
-        }
-
-        .timestamp {
-            color: #aaaaaa;
-            font-size: 14px;
+            text-shadow: 0 2px 4px rgba(0,0,0,0.5);
+            white-space: nowrap;
+            overflow: hidden;
+            text-overflow: ellipsis;
         }
 
         .content {
             color: #ffffff;
-            font-size: 24px;
+            font-size: 28px;
             line-height: 1.4;
             font-weight: 600;
             word-wrap: break-word;
+            text-shadow: 0 2px 8px rgba(0,0,0,0.4);
         }
 
         .content img {
-            height: 28px;
+            height: 32px;
             vertical-align: middle;
+            margin: 0 4px;
         }
     </style>
 </head>
@@ -85,7 +90,6 @@
             <img id="avatar" class="avatar" src="" alt="">
             <div class="author-info">
                 <span id="author-name" class="author-name"></span>
-                <span id="timestamp" class="timestamp"></span>
             </div>
         </div>
         <div id="content" class="content"></div>
@@ -95,41 +99,74 @@
         const container = document.getElementById('selected-container');
         const avatar = document.getElementById('avatar');
         const authorName = document.getElementById('author-name');
-        const timestamp = document.getElementById('timestamp');
         const content = document.getElementById('content');
+        let lastMessageId = null;
 
         function updateDisplay(data) {
             if (!data) return;
             
+            // Avoid updating if it's the same message
+            if (data.id === lastMessageId) return;
+            lastMessageId = data.id;
+            
             avatar.src = data.authorPhoto || '';
             authorName.textContent = data.author;
-            timestamp.textContent = data.timestamp;
             content.innerHTML = data.content;
             
             container.style.display = 'block';
         }
 
-        // Listen for selection changes via chrome.storage
+        // Method 1: Listen to chrome.storage changes
         function initStorageListener() {
             if (window.chrome && chrome.storage) {
+                // Initial load
                 chrome.storage.local.get(['SELECTED_CHAT_MESSAGE'], (result) => {
                     if (result.SELECTED_CHAT_MESSAGE) {
                         updateDisplay(result.SELECTED_CHAT_MESSAGE);
                     }
                 });
 
+                // Listen for changes (real-time updates)
                 chrome.storage.onChanged.addListener((changes) => {
-                    if (changes.SELECTED_CHAT_MESSAGE) {
+                    if (changes.SELECTED_CHAT_MESSAGE && changes.SELECTED_CHAT_MESSAGE.newValue) {
                         updateDisplay(changes.SELECTED_CHAT_MESSAGE.newValue);
                     }
                 });
+
+                // Aggressive polling (check every 200ms) to ensure updates
+                setInterval(() => {
+                    chrome.storage.local.get(['SELECTED_CHAT_MESSAGE'], (result) => {
+                        if (result.SELECTED_CHAT_MESSAGE) {
+                            updateDisplay(result.SELECTED_CHAT_MESSAGE);
+                        }
+                    });
+                }, 200);
             } else {
-                // Retry if bridge.js not yet loaded
-                setTimeout(initStorageListener, 500);
+                setTimeout(initStorageListener, 200);
             }
         }
 
+        // Method 2: Listen to postMessage (from bridge.js)
+        window.addEventListener('message', (event) => {
+            if (event.data.type === 'FROM_CONTENT_STORAGE_CHANGED') {
+                const changes = event.data.changes;
+                if (changes && changes.SELECTED_CHAT_MESSAGE && changes.SELECTED_CHAT_MESSAGE.newValue) {
+                    updateDisplay(changes.SELECTED_CHAT_MESSAGE.newValue);
+                }
+            }
+        });
+
+        // Method 3: Use BroadcastChannel for direct communication
+        const selectedChannel = new BroadcastChannel('selected-message');
+        selectedChannel.onmessage = (e) => {
+            if (e.data.type === 'SELECTED_CHAT_MESSAGE' && e.data.data) {
+                updateDisplay(e.data.data);
+            }
+        };
+
+        // Initialize
         initStorageListener();
     </script>
 </body>
 </html>
+

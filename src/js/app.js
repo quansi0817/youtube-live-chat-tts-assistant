@@ -25,6 +25,19 @@ class App {
             }
         });
 
+        // Video connection buttons
+        const connectBtn = document.getElementById('connectBtn');
+        const disconnectBtn = document.getElementById('disconnectBtn');
+        const videoIdInput = document.getElementById('videoIdInput');
+
+        if (connectBtn) {
+            connectBtn.addEventListener('click', () => this.connectToVideo());
+        }
+
+        if (disconnectBtn) {
+            disconnectBtn.addEventListener('click', () => this.disconnectFromVideo());
+        }
+
         const testBtn = document.getElementById('testTtsBtn');
         if (testBtn) {
             testBtn.addEventListener('click', () => {
@@ -191,6 +204,58 @@ class App {
         const audio = new Audio(URL.createObjectURL(blob));
         audio.volume = volume;
         audio.play();
+    }
+
+    /**
+     * Connect to a YouTube video (opens YouTube page with the video)
+     */
+    connectToVideo() {
+        const videoIdInput = document.getElementById('videoIdInput');
+        const connectBtn = document.getElementById('connectBtn');
+        const disconnectBtn = document.getElementById('disconnectBtn');
+        const connectionStatus = document.getElementById('connectionStatus');
+
+        if (!videoIdInput || !videoIdInput.value.trim()) {
+            alert('Please enter a YouTube Video ID or URL');
+            return;
+        }
+
+        // Extract video ID from URL or use as-is
+        let videoId = videoIdInput.value.trim();
+
+        // Handle full YouTube URLs
+        const urlMatch = videoId.match(/[?&]v=([^#\&\?]*)/);
+        if (urlMatch) {
+            videoId = urlMatch[1];
+        }
+
+        // Update UI
+        connectBtn.disabled = true;
+        disconnectBtn.disabled = false;
+        videoIdInput.disabled = true;
+        connectionStatus.textContent = 'Connected';
+        connectionStatus.className = 'status-badge connected';
+
+        console.log(`[Connection] Connected to video: ${videoId}`);
+    }
+
+    /**
+     * Disconnect from current video
+     */
+    disconnectFromVideo() {
+        const connectBtn = document.getElementById('connectBtn');
+        const disconnectBtn = document.getElementById('disconnectBtn');
+        const videoIdInput = document.getElementById('videoIdInput');
+        const connectionStatus = document.getElementById('connectionStatus');
+
+        // Update UI
+        connectBtn.disabled = false;
+        disconnectBtn.disabled = true;
+        videoIdInput.disabled = false;
+        connectionStatus.textContent = 'Not Connected';
+        connectionStatus.className = 'status-badge disconnected';
+
+        console.log('[Connection] Disconnected from video');
     }
 
     loadSettings() {

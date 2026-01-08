@@ -45,12 +45,28 @@
             border-radius: 4px;
             font-size: 14px;
         }
+        .video-input-group {
+            display: flex;
+            gap: 10px;
+            align-items: center;
+            flex: 1;
+        }
+        .video-input-group .input {
+            flex: 1;
+            min-width: 200px;
+        }
     </style>
 </head>
 <body>
     <div class="container">
         <header class="header">
             <h1>🎥 YouTube Live Chat Assistant</h1>
+            <div class="status-bar">
+                <div class="status-item">
+                    <span class="status-label">Connection:</span>
+                    <span id="connectionStatus" class="status-badge disconnected">Not Connected</span>
+                </div>
+            </div>
         </header>
 
         <main class="main-content">
@@ -59,15 +75,27 @@
                     <h2>TTS & Overlay Dashboard</h2>
                 </div>
                 <div class="card-body">
+                    <!-- Video Connection Section -->
                     <div class="control-group">
-                        <div class="btn-group">
-                            <a href="chat-view.html" id="chatViewLink" target="_blank" class="btn btn-primary">Open Chat View</a>
-                            <a href="selected-view.html" target="_blank" class="btn btn-secondary">Open Selected View</a>
+                        <div class="video-input-group" style="flex: 1; display: flex; gap: 10px; align-items: center;">
+                            <input type="text" id="videoIdInput" class="input" placeholder="Enter YouTube Video ID or URL" style="flex: 1;">
+                            <button id="connectBtn" class="btn btn-success">Connect</button>
+                            <button id="disconnectBtn" class="btn btn-secondary" disabled>Disconnect</button>
                         </div>
                         <div class="bg-control">
                             <label>Chat BG:</label>
                             <input type="range" id="bgOpacity" min="0" max="100" value="0">
                             <span id="opacityVal">0%</span>
+                        </div>
+                    </div>
+
+                    <div class="control-group">
+                        <div class="btn-group">
+                            <a href="chat-view.html" id="chatViewLink" target="_blank" class="btn btn-primary">Open Chat View</a>
+                            <a href="selected-view.html" target="_blank" class="btn btn-secondary">Open Selected View</a>
+                        </div>
+                        <div style="font-size: 12px; color: #666; margin-left: 15px;">
+                            Examples: <code>dQw4w9WgXcQ</code> or <code>https://www.youtube.com/watch?v=dQw4w9WgXcQ</code>
                         </div>
                     </div>
 

@@ -16,40 +16,59 @@
     if (!isAppPage) return;
 
     // Inject bridge.js to provide chrome.storage proxy to the page
-    const script = document.createElement('script');
-    script.src = chrome.runtime.getURL('bridge.js');
-    (document.head || document.documentElement).appendChild(script);
+    if (chrome && chrome.runtime && chrome.runtime.getURL) {
+        const script = document.createElement('script');
+        script.src = chrome.runtime.getURL('bridge.js');
+        (document.head || document.documentElement).appendChild(script);
+    }
 
     // Listen for storage requests from the page (via bridge.js)
     window.addEventListener('message', (event) => {
+        // Check if chrome.storage is available
+        if (!chrome || !chrome.storage || !chrome.storage.local) {
+            return;
+        }
+
         if (event.data.type === 'FROM_PAGE_STORAGE_GET') {
-            chrome.storage.local.get(event.data.keys, (result) => {
-                window.postMessage({
-                    type: 'FROM_CONTENT_STORAGE_GET_RESULT',
-                    result: result,
-                    requestId: event.data.requestId
-                }, '*');
-            });
+            try {
+                chrome.storage.local.get(event.data.keys, (result) => {
+                    window.postMessage({
+                        type: 'FROM_CONTENT_STORAGE_GET_RESULT',
+                        result: result,
+                        requestId: event.data.requestId
+                    }, '*');
+                });
+            } catch (e) {
+                // Ignore errors
+            }
         } else if (event.data.type === 'FROM_PAGE_STORAGE_SET') {
-            chrome.storage.local.set(event.data.items);
+            try {
+                chrome.storage.local.set(event.data.items);
+            } catch (e) {
+                // Ignore errors
+            }
         }
     });
 
     // Notify page when storage changes
-    chrome.storage.onChanged.addListener((changes, areaName) => {
-        window.postMessage({
-            type: 'FROM_CONTENT_STORAGE_CHANGED',
-            changes: changes,
-            areaName: areaName
-        }, '*');
-    });
+    if (chrome && chrome.storage && chrome.storage.onChanged) {
+        chrome.storage.onChanged.addListener((changes, areaName) => {
+            window.postMessage({
+                type: 'FROM_CONTENT_STORAGE_CHANGED',
+                changes: changes,
+                areaName: areaName
+            }, '*');
+        });
+    }
 
     // Direct message relay from background script
-    chrome.runtime.onMessage.addListener((message) => {
-        if (message.type === 'YOUTUBE_CHAT_MESSAGE') {
-            window.dispatchEvent(new CustomEvent('youtubeChatMessage', {
-                detail: message.data
-            }));
-        }
-    });
+    if (chrome && chrome.runtime && chrome.runtime.onMessage) {
+        chrome.runtime.onMessage.addListener((message) => {
+            if (message && message.type === 'YOUTUBE_CHAT_MESSAGE') {
+                window.dispatchEvent(new CustomEvent('youtubeChatMessage', {
+                    detail: message.data
+                }));
+            }
+        });
+    }
 })();

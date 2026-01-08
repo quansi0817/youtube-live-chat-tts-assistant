@@ -5,15 +5,16 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Chat View - OBS Overlay</title>
     <style>
-        /* Transparent background for OBS */
+        @import url('https://fonts.googleapis.com/css2?family=Noto+Sans+SC:wght@400;500;700&display=swap');
+        
         body, html {
             margin: 0;
             padding: 0;
             width: 100%;
             height: 100%;
             overflow: hidden;
-            background-color: rgba(0, 0, 0, 0); 
-            font-family: 'Segoe UI', Roboto, Helvetica, Arial, sans-serif;
+            background-color: transparent; 
+            font-family: 'Noto Sans SC', sans-serif;
         }
 
         #chat-container {
@@ -29,10 +30,9 @@
         #chat-messages {
             display: flex;
             flex-direction: column;
-            gap: 8px;
+            gap: 2px; /* Very compact */
             overflow-y: auto;
             max-height: 100%;
-            /* Hide scrollbar */
             scrollbar-width: none; 
             -ms-overflow-style: none;
         }
@@ -43,82 +43,65 @@
 
         .message-item {
             display: flex;
-            flex-direction: column;
-            animation: fadeIn 0.3s ease-out;
+            align-items: flex-start;
+            gap: 6px;
+            animation: fadeIn 0.2s ease-out;
             flex-shrink: 0;
-            padding: 2px 0;
+            padding: 1px 0;
         }
 
         @keyframes fadeIn {
-            from { opacity: 0; transform: translateY(10px); }
+            from { opacity: 0; transform: translateY(3px); }
             to { opacity: 1; transform: translateY(0); }
         }
 
-        /* Top row: Avatar + Name + Time */
-        .message-header {
-            display: flex;
-            align-items: center;
-            gap: 8px;
-            margin-bottom: 2px;
-        }
-
         .message-avatar {
-            width: 24px;
-            height: 24px;
+            width: 20px;
+            height: 20px;
             border-radius: 50%;
-            border: 1px solid rgba(0,0,0,0.2);
-            object-fit: cover;
+            flex-shrink: 0;
+            margin-top: 2px;
         }
 
-        .message-author {
-            font-weight: 800;
+        .message-body {
+            min-width: 0;
+            flex: 1;
+            line-height: 1.4;
+        }
+
+        /* Generic Text Shadow for readability */
+        .text-glow {
             color: #ffffff;
-            font-size: 14px;
-            white-space: nowrap;
-            /* Strong outline for readability */
-            text-shadow: 
-                -1.5px -1.5px 0 #000,  
-                 1.5px -1.5px 0 #000,
-                -1.5px  1.5px 0 #000,
-                 1.5px  1.5px 0 #000,
-                 0px 2px 4px rgba(0,0,0,1);
-        }
-
-        .message-time {
-            font-size: 12px;
-            color: rgba(255, 255, 255, 0.9);
-            margin-left: auto;
-            white-space: nowrap;
             text-shadow: 
                 -1px -1px 0 #000,  
                  1px -1px 0 #000,
                 -1px  1px 0 #000,
                  1px  1px 0 #000,
-                 0px 1px 3px rgba(0,0,0,1);
+                 0px 1px 2px rgba(0,0,0,0.8);
         }
 
-        /* Bottom row: Message Content */
+        .message-author {
+            font-weight: 700; /* Bold but not extra thick */
+            font-size: 14px;
+            margin-right: 4px;
+        }
+
         .message-content {
-            font-size: 16px;
-            color: #ffffff;
-            line-height: 1.3;
+            font-weight: 400; /* Normal weight, not too thick */
+            font-size: 15px;
             word-wrap: break-word;
-            word-break: break-all;
-            padding-left: 2px;
-            font-weight: 600;
-            /* Standard high-visibility outline */
-            text-shadow: 
-                -1.5px -1.5px 0 #000,  
-                 1.5px -1.5px 0 #000,
-                -1.5px  1.5px 0 #000,
-                 1.5px  1.5px 0 #000,
-                 0px 2px 4px rgba(0,0,0,1);
+            display: inline;
         }
 
         .message-content img {
             height: 18px;
             vertical-align: middle;
-            margin: 0 2px;
+            margin: 0 1px;
+        }
+
+        .message-item:hover {
+            background: rgba(255, 255, 255, 0.1);
+            cursor: pointer;
         }
     </style>
 </head>
@@ -132,17 +115,35 @@
         const seenIds = new Set();
         let messageHistory = [];
 
-        // Load history from localStorage
         try {
             const saved = localStorage.getItem('chatHistory');
             if (saved) {
                 messageHistory = JSON.parse(saved);
+                // Filter out empty messages before rendering - check both HTML and text
+                messageHistory = messageHistory.filter(msg => {
+                    if (!msg || !msg.author) return false;
+                    const content = (msg.content || '').trim();
+                    const textOnly = content.replace(/<[^>]*>/g, '').trim();
+                    return content && content.length > 0 && textOnly && textOnly.length > 0;
+                });
+                // Update localStorage with cleaned history
+                localStorage.setItem('chatHistory', JSON.stringify(messageHistory));
+                // Render cleaned messages
                 messageHistory.forEach(msg => renderMessage(msg, false));
             }
         } catch (e) {}
 
         function renderMessage(data, save = true) {
+            // Skip if no data, no author, duplicate, or empty content
             if (!data || !data.author || seenIds.has(data.id)) return;
+            
+            // Check if content is empty - strip HTML tags first
+            let content = (data.content || '').trim();
+            // Remove HTML tags to check if there's actual text
+            const textOnly = content.replace(/<[^>]*>/g, '').trim();
+            if (!content || content.length === 0 || !textOnly || textOnly.length === 0) {
+                return; // Skip empty messages
+            }
             
             seenIds.add(data.id);
             if (save) {
@@ -154,35 +155,37 @@
             const item = document.createElement('div');
             item.className = 'message-item';
             item.onclick = () => {
-                // Send to selected-view via chrome.storage
+                // Method 1: Store in chrome.storage
                 if (window.chrome && chrome.storage) {
                     chrome.storage.local.set({ 'SELECTED_CHAT_MESSAGE': data });
                 }
+                
+                // Method 2: Broadcast via BroadcastChannel for immediate update
+                const selectedChannel = new BroadcastChannel('selected-message');
+                selectedChannel.postMessage({
+                    type: 'SELECTED_CHAT_MESSAGE',
+                    data: data
+                });
+                selectedChannel.close();
             };
 
             item.innerHTML = `
-                <div class="message-header">
-                    <img class="message-avatar" src="${data.authorPhoto || ''}" onerror="this.style.display='none'">
-                    <span class="message-author">${data.author}</span>
-                    <span class="message-time">${data.timestamp}</span>
+                <img class="message-avatar" src="${data.authorPhoto || ''}" onerror="this.style.display='none'">
+                <div class="message-body">
+                    <span class="message-author text-glow">${data.author}:</span><span class="message-content text-glow">${data.content}</span>
                 </div>
-                <div class="message-content">${data.content}</div>
             `;
 
             chatMessages.appendChild(item);
-            
-            // Auto-scroll to bottom
             setTimeout(() => {
                 chatMessages.scrollTop = chatMessages.scrollHeight;
             }, 10);
         }
 
-        // Listen for messages from the extension
         window.addEventListener('youtubeChatMessage', (e) => {
             renderMessage(e.detail);
         });
 
-        // Background color control via BroadcastChannel
         const settingsChannel = new BroadcastChannel('chat-settings');
         settingsChannel.onmessage = (e) => {
             if (e.data.type === 'UPDATE_BG_COLOR') {
@@ -190,7 +193,6 @@
             }
         };
 
-        // Initialize background color
         const savedColor = localStorage.getItem('chatBgColor');
         if (savedColor) document.body.style.backgroundColor = savedColor;
     </script>

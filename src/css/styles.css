@@ -334,6 +334,17 @@ body {
     font-size: 12px;
 }
 
+.btn-success {
+    background: #48bb78;
+    color: white;
+}
+
+.btn-success:hover:not(:disabled) {
+    background: #38a169;
+    transform: translateY(-1px);
+    box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+}
+
 .btn:disabled {
     opacity: 0.5;
     cursor: not-allowed;
